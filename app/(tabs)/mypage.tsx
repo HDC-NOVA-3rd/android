@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { User } from "@/app/types/user";
 import { styles } from "@/styles/tabs/mypage.styles";
+import { removeToken } from "@/api/tokenStorage";
 
 // Mock User Data
 const mockUser: User = {
@@ -35,6 +36,8 @@ export default function MyPageScreen() {
         style: "destructive",
         onPress: () => {
           // Clear session here
+          removeToken("accessToken");
+          removeToken("refreshToken");
           router.replace("/login");
         },
       },
