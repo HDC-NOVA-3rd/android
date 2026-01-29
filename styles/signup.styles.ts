@@ -55,15 +55,18 @@ export const styles = StyleSheet.create({
     backgroundColor: "#4b5563", // 인증 버튼 색상
   },
   termsContainer: {
-    backgroundColor: "#f9fafb",
+    backgroundColor: "#F8F9FA", // 연한 회색 배경
     padding: 16,
     borderRadius: 8,
-    marginVertical: 16,
+    marginTop: 24,
+    marginBottom: 16,
+    alignItems: "center",
   },
   termsText: {
-    fontSize: 12,
-    color: "#4b5563",
-    lineHeight: 18,
+    fontSize: 13,
+    color: "#666",
+    textAlign: "center",
+    lineHeight: 20,
   },
   linkText: {
     color: "#2563eb",
