@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Text, ScrollView, Alert } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, ScrollView, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Feather, FontAwesome } from "@expo/vector-icons";
@@ -9,23 +9,40 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { User } from "@/app/types/user";
 import { styles } from "@/styles/tabs/mypage.styles";
-
-// Mock User Data
-const mockUser: User = {
-  id: "1",
-  email: "hong@example.com",
-  name: "홍길동",
-  loginMethod: "google",
-  phone: "010-1234-5678",
-  birthDate: "1990-01-01",
-  apartment: "래미안 아파트",
-  dong: "101동",
-  hosu: "1201호",
-};
+import { useAuth } from "@/context/AuthContext";
+import { getMyInfo, getMyApartmentInfo } from "@/api/service/memberService";
 
 export default function MyPageScreen() {
   const router = useRouter();
-  const user = mockUser; // In real app, get from context/store
+  const { signOut } = useAuth();
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchUserData();
+  }, []);
+
+  const fetchUserData = async () => {
+    try {
+      setLoading(true);
+      const [profileData, apartmentData] = await Promise.all([getMyInfo(), getMyApartmentInfo()]);
+
+      // Assuming the API responses map to the User interface fields
+      // Adjust field mapping as necessary based on actual API response structure
+      console.log("Profile Data:", profileData);
+      console.log("Apartment Data:", apartmentData);
+      const userData: User = {
+        ...profileData,
+        ...apartmentData,
+      };
+      setUser(userData);
+    } catch (error) {
+      console.error("Failed to fetch user data", error);
+      Alert.alert("오류", "사용자 정보를 불러오는데 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const onLogout = () => {
     Alert.alert("로그아웃", "로그아웃 하시겠습니까?", [
@@ -34,8 +51,7 @@ export default function MyPageScreen() {
         text: "로그아웃",
         style: "destructive",
         onPress: () => {
-          // Clear session here
-          router.replace("/login");
+          signOut();
         },
       },
     ]);
@@ -64,6 +80,25 @@ export default function MyPageScreen() {
         );
     }
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
+        <ActivityIndicator size="large" color="#2563eb" />
+      </SafeAreaView>
+    );
+  }
+
+  if (!user) {
+    return (
+      <SafeAreaView style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
+        <Text>사용자 정보를 불러올 수 없습니다.</Text>
+        <Button onPress={fetchUserData} style={{ marginTop: 20 }}>
+          <Text>다시 시도</Text>
+        </Button>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -110,7 +145,7 @@ export default function MyPageScreen() {
                 <Feather name="phone" size={20} color="#6b7280" />
                 <View>
                   <Text style={styles.infoLabel}>연락처</Text>
-                  <Text style={styles.infoValue}>{user.phone}</Text>
+                  <Text style={styles.infoValue}>{user.phoneNumber}</Text>
                 </View>
               </View>
 
@@ -145,7 +180,7 @@ export default function MyPageScreen() {
                 <FontAwesome name="building" size={24} color="#2563eb" style={{ marginTop: 2 }} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.aptLabel}>아파트</Text>
-                  <Text style={styles.aptValue}>{user.apartment}</Text>
+                  <Text style={styles.aptValue}>{user.apartmentName}</Text>
                 </View>
               </View>
 
@@ -154,7 +189,7 @@ export default function MyPageScreen() {
                   <Feather name="home" size={20} color="#6b7280" />
                   <View>
                     <Text style={styles.infoLabel}>동</Text>
-                    <Text style={styles.residenceValue}>{user.dong}</Text>
+                    <Text style={styles.residenceValue}>{user.dongNo}</Text>
                   </View>
                 </View>
 
@@ -162,7 +197,7 @@ export default function MyPageScreen() {
                   <Feather name="home" size={20} color="#6b7280" />
                   <View>
                     <Text style={styles.infoLabel}>호수</Text>
-                    <Text style={styles.residenceValue}>{user.hosu}</Text>
+                    <Text style={styles.residenceValue}>{user.hoNo}</Text>
                   </View>
                 </View>
               </View>
