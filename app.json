@@ -21,7 +21,8 @@
       "package": "com.nova-3rd.android",
       "usesCleartextTraffic": true,
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "softwareKeyboardLayoutMode": "adjustResize"
     },
     "web": {
       "output": "static",

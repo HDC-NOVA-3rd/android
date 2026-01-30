@@ -6,5 +6,10 @@ export const API_PATHS = {
     VERIFY: "/resident/verify",
     SIGNUP: "/member/signup",
     LOGIN: "/member/login",
+    REFRESH: "/member/refresh",
+  },
+  MEMBER: {
+    PROFILE: "/member/profile",
+    APARTMENT: "/member/apartment",
   },
 };

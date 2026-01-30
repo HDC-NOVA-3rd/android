@@ -1,5 +1,5 @@
 import { login } from "@/api/service/authService";
-import { removeToken, setToken } from "@/api/tokenStorage";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,12 +8,13 @@ import { Separator } from "@/components/ui/separator";
 import { styles } from "@/styles/login.styles";
 import { Feather } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Alert, Image, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { signIn } = useAuth();
   const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -38,19 +39,10 @@ export default function LoginScreen() {
       const response = await login({ loginId: id, password: pass });
       console.log("로그인 성공:", response);
 
-      // 2. 토큰 저장 (BackendServer.js의 인터셉터가 감지할 수 있도록)
-      // 응답 구조에 따라 response.accessToken 또는 response.data.accessToken 등 확인 필요
+      // 2. 토큰 저장 (AuthContext를 통해 상태 업데이트 및 자동 리다이렉트)
       if (response.accessToken) {
-        await setToken("accessToken", response.accessToken);
-
-        // Refresh Token이 있다면 함께 저장
-        if (response.refreshToken) {
-          await setToken("refreshToken", response.refreshToken);
-        }
+        await signIn(response.accessToken, response.refreshToken);
       }
-
-      // 3. 메인 화면으로 이동
-      router.replace("/(tabs)");
     } catch (error: any) {
       console.error("로그인 실패:", error);
 
@@ -61,26 +53,6 @@ export default function LoginScreen() {
       setIsLoading(false); // 로딩 종료
     }
   };
-
-  useEffect(() => {
-    const performLogout = async () => {
-      try {
-        // 1. 저장소에서 토큰 삭제 (보내주신 함수 사용)
-        await removeToken("accessToken"); // 키 이름은 프로젝트에 맞게 수정
-        await removeToken("refreshToken"); // 키 이름은 프로젝트에 맞게 수정
-
-        // 2. (중요) 앱 내부의 로그인 상태(Context, Recoil 등)도 여기서 초기화해야 함
-        // setIsLoggedIn(false);
-
-        console.log("로그아웃 완료");
-      } catch (error) {
-        console.error("로그아웃 처리 중 오류:", error);
-        // 에러가 나더라도 일단 로그인 화면으로 보내는 것이 안전함
-      }
-    };
-
-    performLogout();
-  }, []); // 의존성 배열이 비어있으므로 컴포넌트 마운트 시 1회 실행
 
   return (
     <SafeAreaView style={styles.container}>
