@@ -28,8 +28,8 @@ export default function LoginScreen() {
   const onOAuthLogin = async (provider: "google" | "naver") => {
     try {
       // 1. 앱으로 돌아올 리다이렉트 URL 생성
-      // Expo Go 개발 환경에서는 보통 'exp://IP:8081/--/oauth/callback' 형태가 됨
-      const redirectUri = Linking.createURL("/oauth/callback");
+      // Expo Go 개발 환경에서는 보통 'exp://IP:8081/--/' 형태가 됨
+      const redirectUri = Linking.createURL("/");
 
       console.log("Redirect URI:", redirectUri);
 
@@ -58,7 +58,6 @@ export default function LoginScreen() {
           // [CASE 1] 기존 회원 -> 바로 로그인 처리
           await signIn(token as string, refreshToken as string);
           Alert.alert("성공", "소셜 로그인되었습니다.");
-          router.replace("/"); // 메인 화면으로 이동
         } else if (status === "REGISTER") {
           // [CASE 2] 신규 회원 -> 회원가입 화면으로 이동
           // 회원가입 화면에 registerToken을 전달하여 폼을 미리 채우게 함
