@@ -9,13 +9,18 @@ import { styles } from "@/styles/signup.styles";
 import { formatPhoneNumber } from "@/utils/format";
 import { Feather } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { Stack, useRouter } from "expo-router";
-import React, { useState } from "react";
-import { KeyboardAvoidingView, Pressable, ScrollView, Text, View, Platform } from "react-native";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { jwtDecode } from "jwt-decode";
+import React, { useEffect, useState } from "react";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SignupScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const { registerToken } = params;
+  // [추가] 소셜 회원가입 여부 판단 플래그 (토큰이 있으면 소셜)
+  const isSocialSignup = !!registerToken;
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const {
@@ -31,6 +36,33 @@ export default function SignupScreen() {
     handleVerify,
     handleSignup,
   } = useSignupForm();
+
+  // [변경 4] 토큰 해독 및 폼 데이터 초기화 로직
+  useEffect(() => {
+    if (registerToken) {
+      try {
+        // 1. 토큰 해독
+        const decoded: any = jwtDecode(registerToken as string);
+        console.log("Social Signup Info:", decoded);
+
+        // 2. 폼 데이터 업데이트
+        // 백엔드 JwtProvider에서 넣은 키값: email, name, provider, providerId
+        updateFields({
+          name: decoded.name || "", // 실명 (입주민 인증용)
+          email: decoded.email || "", // 이메일 (계정 정보용)
+          // 주의: useSignupForm의 formData 구조에 아래 필드들이 정의되어 있어야 합니다.
+          // 만약 없다면 hooks/use-signup-form.ts 에 필드를 추가해야 합니다.
+          registerToken: registerToken as string,
+          login_type: decoded.provider,
+          providerId: decoded.providerId,
+          phone: decoded.phone || "", // 네이버에서 받은 0108485...
+          birthDate: decoded.birthDate || "", // 1999-07-21
+        });
+      } catch (error) {
+        console.error("Token decode error:", error);
+      }
+    }
+  }, [registerToken]);
 
   // 날짜 선택 UI 핸들러 (View 전용 로직)
   const onDateChange = (event: any, selectedDate?: Date) => {
@@ -64,7 +96,7 @@ export default function SignupScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <Card>
             <CardHeader>
-              <CardTitle>회원가입</CardTitle>
+              <CardTitle>{isSocialSignup ? "소셜 회원가입" : "회원가입"}</CardTitle>
               <CardDescription>
                 {isVerified ? "계정 정보를 입력하여 가입을 완료하세요" : "입주민 정보를 먼저 인증해주세요"}
               </CardDescription>
@@ -177,32 +209,38 @@ export default function SignupScreen() {
               {/* Step 2: 계정 정보 */}
               {isVerified && (
                 <View style={styles.section}>
-                  <View style={styles.field}>
-                    <Label>아이디 *</Label>
-                    <Input
-                      value={formData.loginId}
-                      onChangeText={(val) => updateFields({ loginId: val })}
-                      autoCapitalize="none"
-                    />
-                  </View>
-                  <View style={styles.field}>
-                    <Label>비밀번호 *</Label>
-                    <Input
-                      value={formData.password}
-                      onChangeText={(val) => updateFields({ password: val })}
-                      autoCapitalize="none"
-                      secureTextEntry
-                    />
-                  </View>
-                  <View style={styles.field}>
-                    <Label>비밀번호 확인*</Label>
-                    <Input
-                      value={formData.confirmPassword}
-                      onChangeText={(val) => updateFields({ confirmPassword: val })}
-                      autoCapitalize="none"
-                      secureTextEntry
-                    />
-                  </View>
+                  {/* [변경] 일반 회원가입일 때만 ID/PW 입력창 표시 */}
+                  {!isSocialSignup && (
+                    <>
+                      <View style={styles.field}>
+                        <Label>아이디 *</Label>
+                        <Input
+                          value={formData.loginId}
+                          onChangeText={(val) => updateFields({ loginId: val })}
+                          autoCapitalize="none"
+                        />
+                      </View>
+                      <View style={styles.field}>
+                        <Label>비밀번호 *</Label>
+                        <Input
+                          value={formData.password}
+                          onChangeText={(val) => updateFields({ password: val })}
+                          autoCapitalize="none"
+                          secureTextEntry
+                        />
+                      </View>
+                      <View style={styles.field}>
+                        <Label>비밀번호 확인*</Label>
+                        <Input
+                          value={formData.confirmPassword}
+                          onChangeText={(val) => updateFields({ confirmPassword: val })}
+                          autoCapitalize="none"
+                          secureTextEntry
+                        />
+                      </View>
+                    </>
+                  )}
+                  {/* 이메일 (소셜일 경우 자동입력 및 수정불가) */}
                   <View style={styles.field}>
                     <Label>이메일 *</Label>
                     <Input
@@ -210,9 +248,12 @@ export default function SignupScreen() {
                       onChangeText={(val) => updateFields({ email: val })}
                       autoCapitalize="none"
                       keyboardType="email-address"
-                      autoCorrect={false}
+                      // 소셜 가입이면 수정 불가능하게 막음 (토큰 정보 신뢰)
+                      editable={!isSocialSignup}
+                      style={isSocialSignup ? styles.disabledInput : undefined}
                     />
                   </View>
+                  {/* 생년월일 (공통) */}
                   <View style={styles.field}>
                     <Label>생년월일 *</Label>
                     <Pressable onPress={() => setShowDatePicker(true)}>
@@ -234,10 +275,9 @@ export default function SignupScreen() {
                       <Text style={styles.linkText}>개인정보 처리방침</Text>에 동의하는 것으로 간주됩니다.
                     </Text>
                   </View>
-                  {/* 가입 완료 버튼 */}
-                  <Button onPress={() => handleSignup(() => router.replace("/login"))} style={styles.submitButton}>
-                    <Text style={styles.buttonText}>회원가입 완료</Text>
-                  </Button>
+                  <Button onPress={() => handleSignup(() => router.replace("/"))} style={styles.submitButton}>
+                    <Text style={styles.buttonText}>{isSocialSignup ? "소셜 회원가입 완료" : "회원가입 완료"}</Text>
+                  </Button>{" "}
                 </View>
               )}
             </CardContent>

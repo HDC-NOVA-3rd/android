@@ -1,16 +1,22 @@
+import { BASE_URL } from "@/api/client";
 import { login } from "@/api/service/authService";
-import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/context/AuthContext";
 import { styles } from "@/styles/login.styles";
 import { Feather } from "@expo/vector-icons";
+import * as Linking from "expo-linking";
 import { Stack, useRouter } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import React, { useState } from "react";
 import { Alert, Image, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+// 웹 브라우저가 앱 내에서 닫히지 않고 남아있는 경우를 방지
+WebBrowser.maybeCompleteAuthSession();
+const BACKEND_URL = BASE_URL.replace("/api", ""); // BASE_URL에서 /api 부분 제거
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -19,8 +25,58 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const onOAuthLogin = (provider: "google" | "naver") => {
-    Alert.alert("OAuth Login", `${provider} login 은 지원되지 않고있습니다.`);
+  const onOAuthLogin = async (provider: "google" | "naver") => {
+    try {
+      // 1. 앱으로 돌아올 리다이렉트 URL 생성
+      // Expo Go 개발 환경에서는 보통 'exp://IP:8081/--/oauth/callback' 형태가 됨
+      const redirectUri = Linking.createURL("/oauth/callback");
+
+      console.log("Redirect URI:", redirectUri);
+
+      // 2. 백엔드 OAuth 인증 시작 URL 생성
+      // redirect_uri 파라미터를 붙여서 백엔드에게 "끝나면 여기로 보내줘"라고 알림
+      const authUrl = `${BACKEND_URL}/oauth2/authorization/${provider}?redirect_uri=${redirectUri}`;
+
+      // 3. 인앱 브라우저 열기
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+
+      // 4. 결과 처리
+      if (result.type === "success" && result.url) {
+        // 돌아온 URL 파싱 (예: exp://...?status=LOGIN&token=abcde...)
+        const { queryParams } = Linking.parse(result.url);
+
+        const status = queryParams?.status; // LOGIN 또는 REGISTER
+        const token = queryParams?.token; // Access Token
+        const refreshToken = queryParams?.refreshToken; // Refresh Token
+
+        if (!token) {
+          Alert.alert("오류", "인증 토큰을 받아오지 못했습니다.");
+          return;
+        }
+
+        if (status === "LOGIN") {
+          // [CASE 1] 기존 회원 -> 바로 로그인 처리
+          await signIn(token as string, refreshToken as string);
+          Alert.alert("성공", "소셜 로그인되었습니다.");
+          router.replace("/"); // 메인 화면으로 이동
+        } else if (status === "REGISTER") {
+          // [CASE 2] 신규 회원 -> 회원가입 화면으로 이동
+          // 회원가입 화면에 registerToken을 전달하여 폼을 미리 채우게 함
+          router.push({
+            pathname: "/signup",
+            params: { registerToken: token },
+          });
+          Alert.alert("안내", "추가 정보를 입력하여 가입을 완료해주세요.");
+        }
+      }
+      // 사용자가 브라우저를 닫거나 취소한 경우 (result.type === 'cancel' or 'dismiss')
+      else {
+        console.log("Login cancelled or dismissed");
+      }
+    } catch (error) {
+      console.error("OAuth Error:", error);
+      Alert.alert("오류", "소셜 로그인 중 문제가 발생했습니다.");
+    }
   };
 
   const handleSubmit = async () => {

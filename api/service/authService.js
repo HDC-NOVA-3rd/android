@@ -76,11 +76,21 @@ export const login = async (loginRequest) => {
 
 export const refresh = async (refreshToken) => {
   try {
-    console.log("BASE_URL:", BASE_URL, API_PATHS.AUTH.REFRESH);
-    console.log("refreshToken:", refreshToken);
-    const response = await axios.post(`${BASE_URL}${API_PATHS.AUTH.REFRESH}`, {
-      refreshToken: refreshToken,
-    });
+    const url = `${BASE_URL}${API_PATHS.AUTH.REFRESH}`;
+    console.log(`[Token Refresh] Requesting: "${url}"`);
+    console.log(`[Token Refresh] Token: ${refreshToken?.substring(0, 10)}...`);
+
+    const response = await axios.post(
+      url,
+      {
+        refreshToken: refreshToken,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    );
     return response.data;
   } catch (error) {
     console.error("토큰 갱신 API 에러:", error);
