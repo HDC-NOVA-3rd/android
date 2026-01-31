@@ -2,10 +2,10 @@ export interface User {
   id?: string;
   email: string;
   name: string;
-  loginMethod?: 'email' | 'google' | 'naver';
-  phone: string;
+  loginMethod?: "email" | "google" | "naver";
+  phoneNumber: string;
   birthDate: string;
-  apartment: string;
-  dong: string;
-  hosu: string;
+  apartmentName: string;
+  dongNo: string;
+  hoNo: string;
 }
