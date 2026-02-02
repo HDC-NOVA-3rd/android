@@ -1,8 +1,9 @@
 import { getApartmentList, getDongList, getHoList, signup, verify } from "@/api/service/authService";
+import { useAuth } from "@/context/AuthContext";
+import { formatDateToYYYYMMDD } from "@/utils/date"; // 앞서 만든 유틸 함수 사용 가정
+import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert } from "react-native";
-import { formatDateToYYYYMMDD } from "@/utils/date"; // 앞서 만든 유틸 함수 사용 가정
-import { useAuth } from "@/context/AuthContext";
 
 export interface CodeItem {
   id: number;
@@ -129,9 +130,18 @@ export const useSignupForm = () => {
         phone: formData.phone,
       });
       if (response.isVerified) {
-        setResidentId(response.residentId);
-        setIsVerified(true);
-        Alert.alert("인증 성공", "입주민 정보가 확인되었습니다.");
+        if (response.status === "ALREADY_EXISTS") {
+          if (response.loginType === "NORMAL") {
+            Alert.alert("안내", "이미 일반 계정으로 가입된 입주민입니다.");
+          } else {
+            Alert.alert("안내", `이미 ${response.loginType} 소셜 계정으로 가입된 입주민입니다.`);
+          }
+          router.replace("/login");
+        } else if (response.status === "AVAILABLE") {
+          Alert.alert("인증 성공", "입주민 정보가 확인되었습니다.\n이어서 회원가입을 진행해주세요.");
+          setResidentId(response.residentId);
+          setIsVerified(true);
+        }
       } else {
         Alert.alert("인증 실패", response.message);
       }

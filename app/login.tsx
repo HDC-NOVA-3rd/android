@@ -12,7 +12,7 @@ import * as Linking from "expo-linking";
 import { Stack, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import React, { useState } from "react";
-import { Alert, Image, ScrollView, Text, View } from "react-native";
+import { Alert, Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 // 웹 브라우저가 앱 내에서 닫히지 않고 남아있는 경우를 방지
 WebBrowser.maybeCompleteAuthSession();
@@ -109,6 +109,15 @@ export default function LoginScreen() {
     }
   };
 
+  // 버튼 클릭 핸들러 추가
+  const handleFindId = () => {
+    router.push("/auth/findID");
+  };
+
+  const handleResetPassword = () => {
+    router.push("/auth/resetPW");
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -156,6 +165,26 @@ export default function LoginScreen() {
               </Button>
             </View>
 
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "center",
+                alignItems: "center",
+                marginTop: 12,
+                gap: 12,
+              }}
+            >
+              <Pressable onPress={handleFindId}>
+                <Text style={{ fontSize: 13, color: "#666" }}>아이디 찾기</Text>
+              </Pressable>
+
+              <View style={{ width: 1, height: 12, backgroundColor: "#DDD" }} />
+
+              <Pressable onPress={handleResetPassword}>
+                <Text style={{ fontSize: 13, color: "#666" }}>비밀번호 재설정</Text>
+              </Pressable>
+            </View>
+
             <View style={styles.dividerContainer}>
               <Separator />
               <View style={styles.orLabelContainer}>
@@ -187,7 +216,7 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.signupContainer}>
-              <Text style={styles.signupText}>아직 계정이 없으신가요? </Text>
+              <Text style={styles.signupText}>아직 계정이 없으신가요?</Text>
               <Button
                 variant="link"
                 onPress={() => router.push("/signup")}

@@ -25,11 +25,11 @@ export default function SignupScreen() {
 
   const {
     formData,
-    updateFields,
     apartmentList,
     dongList,
     hoList,
     isVerified,
+    updateFields,
     onApartmentChange,
     onDongChange,
     onHoChange,
@@ -180,6 +180,7 @@ export default function SignupScreen() {
                     onChangeText={(val) => updateFields({ name: val })}
                     editable={!isVerified}
                     style={isVerified ? styles.disabledInput : undefined}
+                    placeholder="이름 입력"
                   />
                 </View>
                 <View style={styles.field}>
@@ -271,7 +272,7 @@ export default function SignupScreen() {
                   </View>
                   <View style={styles.termsContainer}>
                     <Text style={styles.termsText}>
-                      회원가입 시 <Text style={styles.linkText}>서비스 이용약관</Text> 및{" "}
+                      회원가입 시 <Text style={styles.linkText}>서비스 이용약관</Text>및
                       <Text style={styles.linkText}>개인정보 처리방침</Text>에 동의하는 것으로 간주됩니다.
                     </Text>
                   </View>
