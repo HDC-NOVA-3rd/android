@@ -2,16 +2,16 @@ import { Text, View } from "react-native";
 
 export default function ChatBubble({
   role,
-  text,
+  content,
   intent,
   data,
 }: {
-  role: "user" | "assistant";
-  text?: string;
+  role: "USER" | "ASSISTANT";
+  content: string;
   intent?: string;
   data?: any;
 }) {
-  const isUser = role === "user";
+  const isUser = role === "USER";
 
   return (
     <View
@@ -24,9 +24,8 @@ export default function ChatBubble({
         backgroundColor: isUser ? "#2F6BFF" : "#F2F4F7",
       }}
     >
-      {!!text && <Text style={{ color: isUser ? "white" : "#111" }}>{text}</Text>}
+      <Text style={{ color: isUser ? "white" : "#111" }}>{content}</Text>
 
-      {/* MVP: intent/data가 있으면 간단히 보조로 표시 */}
       {!!intent && !isUser && (
         <Text style={{ marginTop: 6, fontSize: 12, color: "#666" }}>intent: {intent}</Text>
       )}

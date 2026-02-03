@@ -12,4 +12,7 @@ export const API_PATHS = {
     PROFILE: "/member/profile",
     APARTMENT: "/member/apartment",
   },
+  CHAT: {
+    SEND: "/chat",
+  },
 };

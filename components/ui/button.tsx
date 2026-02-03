@@ -1,47 +1,53 @@
-import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, TouchableOpacityProps, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
+import React from "react";
+import {
+  StyleSheet,
+  Text,
+  TextStyle,
+  TouchableOpacity,
+  TouchableOpacityProps,
+  ViewStyle,
+} from "react-native";
 
 interface ButtonProps extends TouchableOpacityProps {
-  variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
-  size?: 'default' | 'sm' | 'lg' | 'icon';
+  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  size?: "default" | "sm" | "lg" | "icon";
   children: React.ReactNode;
 }
 
-export function Button({ 
-  variant = 'default', 
-  size = 'default', 
-  className, 
-  style, 
-  children, 
-  ...props 
+export function Button({
+  variant = "default",
+  size = "default",
+  className,
+  style,
+  children,
+  ...props
 }: ButtonProps) {
-  
   let containerStyle: ViewStyle = { ...styles.base };
   let textStyle: TextStyle = { ...styles.textBase };
 
   // Variants
   switch (variant) {
-    case 'default':
+    case "default":
       containerStyle = { ...containerStyle, ...styles.defaultContainer };
       textStyle = { ...textStyle, ...styles.defaultText };
       break;
-    case 'destructive':
+    case "destructive":
       containerStyle = { ...containerStyle, ...styles.destructiveContainer };
       textStyle = { ...textStyle, ...styles.destructiveText };
       break;
-    case 'outline':
+    case "outline":
       containerStyle = { ...containerStyle, ...styles.outlineContainer };
       textStyle = { ...textStyle, ...styles.outlineText };
       break;
-    case 'secondary':
+    case "secondary":
       containerStyle = { ...containerStyle, ...styles.secondaryContainer };
       textStyle = { ...textStyle, ...styles.secondaryText };
       break;
-    case 'ghost':
+    case "ghost":
       containerStyle = { ...containerStyle, ...styles.ghostContainer };
       textStyle = { ...textStyle, ...styles.ghostText };
       break;
-    case 'link':
+    case "link":
       containerStyle = { ...containerStyle, ...styles.linkContainer };
       textStyle = { ...textStyle, ...styles.linkText };
       break;
@@ -49,27 +55,23 @@ export function Button({
 
   // Sizes
   switch (size) {
-    case 'default':
+    case "default":
       containerStyle = { ...containerStyle, height: 44, paddingHorizontal: 16 };
       break;
-    case 'sm':
+    case "sm":
       containerStyle = { ...containerStyle, height: 36, paddingHorizontal: 12 };
       textStyle = { ...textStyle, fontSize: 12 };
       break;
-    case 'lg':
+    case "lg":
       containerStyle = { ...containerStyle, height: 50, paddingHorizontal: 32 };
       break;
-    case 'icon':
+    case "icon":
       containerStyle = { ...containerStyle, height: 40, width: 40, paddingHorizontal: 0 };
       break;
   }
 
   return (
-    <TouchableOpacity 
-      style={[containerStyle, style]} 
-      activeOpacity={0.7}
-      {...props}
-    >
+    <TouchableOpacity style={[containerStyle, style]} activeOpacity={0.7} {...props}>
       <Text style={textStyle}>{children}</Text>
     </TouchableOpacity>
   );
@@ -77,52 +79,52 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 6,
   },
   textBase: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   defaultContainer: {
-    backgroundColor: '#111827',
+    backgroundColor: "#111827",
   },
   defaultText: {
-    color: '#ffffff',
+    color: "#ffffff",
   },
   destructiveContainer: {
-    backgroundColor: '#ef4444',
+    backgroundColor: "#ef4444",
   },
   destructiveText: {
-    color: '#ffffff',
+    color: "#ffffff",
   },
   outlineContainer: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: "#e5e7eb",
   },
   outlineText: {
-    color: '#111827',
+    color: "#111827",
   },
   secondaryContainer: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: "#f3f4f6",
   },
   secondaryText: {
-    color: '#111827',
+    color: "#111827",
   },
   ghostContainer: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   ghostText: {
-    color: '#111827',
+    color: "#111827",
   },
   linkContainer: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   linkText: {
-    color: '#111827',
-    textDecorationLine: 'underline',
+    color: "#111827",
+    textDecorationLine: "underline",
   },
 });
