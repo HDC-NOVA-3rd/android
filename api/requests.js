@@ -14,5 +14,7 @@ export const API_PATHS = {
   },
   CHAT: {
     SEND: "/chat",
+    SESSIONS: "/chat/sessions",
+    SESSION_MESSAGES: (sessionId) => `/chat/sessions/${sessionId}/messages`,
   },
 };
