@@ -1,0 +1,114 @@
+import React, { useState } from "react";
+import { View, Text, ScrollView, TouchableOpacity, Image, TextInput } from "react-native";
+import { useRouter } from "expo-router";
+import { Feather } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { facilities } from "@/app/data/mockData";
+import { styles } from "@/styles/facility/list.styles";
+import { Facility } from "@/app/types/facility";
+
+export default function FacilityListScreen() {
+  const router = useRouter();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("전체");
+
+  const categories = ["전체", ...Array.from(new Set(facilities.map((f) => f.category)))];
+
+  const filteredFacilities = facilities.filter((facility) => {
+    const matchesSearch =
+      facility.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      facility.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === "전체" || facility.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  const onSelectFacility = (facility: Facility) => {
+    router.push(`/facility/${facility.id}`);
+  };
+
+  return (
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <Text style={styles.headerTitle}>커뮤니티 시설 예약</Text>
+        </View>
+
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <Feather name="search" size={20} color="#9ca3af" style={styles.searchIcon} />
+          <Input
+            placeholder="시설 검색..."
+            value={searchTerm}
+            onChangeText={setSearchTerm}
+            style={styles.searchInput}
+          />
+        </View>
+
+        {/* Category Filter */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoryScrollContent}
+          style={styles.categoryContainer}
+        >
+          {categories.map((category) => (
+            <TouchableOpacity
+              key={category}
+              style={[styles.categoryButton, selectedCategory === category && styles.categoryButtonActive]}
+              onPress={() => setSelectedCategory(category)}
+            >
+              <Text style={[styles.categoryText, selectedCategory === category && styles.categoryTextActive]}>
+                {category}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.content}>
+        {filteredFacilities.map((facility) => (
+          <TouchableOpacity key={facility.id} activeOpacity={0.9} onPress={() => onSelectFacility(facility)}>
+            <Card style={styles.card}>
+              <Image source={{ uri: facility.imageUrl }} style={styles.cardImage} resizeMode="cover" />
+              <CardHeader style={styles.cardHeader}>
+                <View style={styles.cardHeaderTop}>
+                  <CardTitle style={styles.cardTitle}>{facility.name}</CardTitle>
+                  <Badge variant="secondary">{facility.category}</Badge>
+                </View>
+                <CardDescription style={styles.cardDescription}>{facility.description}</CardDescription>
+              </CardHeader>
+              <CardContent style={styles.cardContent}>
+                <View style={styles.infoRow}>
+                  <Feather name="users" size={16} color="#4b5563" />
+                  <Text style={styles.infoText}>최대 {facility.capacity}명</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Feather name="clock" size={16} color="#4b5563" />
+                  <Text style={styles.infoText}>{facility.operatingHours}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Feather name="dollar-sign" size={16} color="#4b5563" />
+                  <Text style={styles.infoText}>{facility.pricePerHour.toLocaleString()}원/시간</Text>
+                </View>
+                <Button style={styles.bookButton} onPress={() => onSelectFacility(facility)}>
+                  <Text style={{ color: "white" }}>예약하기</Text>
+                </Button>
+              </CardContent>
+            </Card>
+          </TouchableOpacity>
+        ))}
+
+        {filteredFacilities.length === 0 && (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>검색 결과가 없습니다.</Text>
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}

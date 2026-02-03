@@ -21,11 +21,18 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: "홈",
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
         }}
       />
 
+      <Tabs.Screen
+        name="facilityList"
+        options={{
+          title: "시설",
+          tabBarIcon: ({ color }) => <Feather size={28} name="grid" color={color} />,
+        }}
+      />
       <Tabs.Screen
         name="chat"
         options={{
@@ -36,7 +43,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="mypage"
         options={{
-          title: "My Page",
+          title: "내 정보",
           tabBarIcon: ({ color }) => <Feather size={28} name="user" color={color} />,
         }}
       />

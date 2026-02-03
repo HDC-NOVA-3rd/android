@@ -1,7 +1,7 @@
 import client from "@/api/client";
+import { refresh } from "@/api/service/authService";
 import { getRefreshToken, removeRefreshToken, setRefreshToken } from "@/api/tokenStorage";
 import { useRouter, useSegments } from "expo-router";
-import { refresh } from "@/api/service/authService";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
 type AuthContextType = {
@@ -56,18 +56,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     restoreSession();
   }, []);
 
-  // 2. 리다이렉트 로직 (이전과 동일하지만 accessToken 감지)
+  // 2. 리다이렉트 로직 (이전과 동일하지만 accessToken 감지해 경로 변경)
   useEffect(() => {
     if (isLoading) return;
 
-    const inAuthGroup = segments[0] === "(tabs)";
-    const inPublicGroup = segments[0] === "login" || segments[0] === "signup";
+    const inPublicGroup = segments[0] === "login" || segments[0] === "signup" || segments[0] === "auth";
 
+    // 1. 로그인이 안 되어 있는데, 로그인/회원가입 페이지가 아닌 곳(보호된 페이지)에 접근하려 할 때
+    // -> 로그인 페이지로 쫓아냄
     if (!accessToken && !inPublicGroup) {
       router.replace("/login");
-    } else if (accessToken && !inAuthGroup) {
+    }
+    // 2. 이미 로그인을 했는데, 굳이 로그인/회원가입 페이지에 들어오려 할 때
+    // -> 메인(Tabs)으로 돌려보냄
+    else if (accessToken && inPublicGroup) {
       router.replace("/(tabs)");
     }
+    // 3. 그 외의 경우 (정상 접근)
+    // - 로그인 O + 보호된 페이지 (tabs, facility 등) -> 통과 (OK)
+    // - 로그인 X + 로그인 페이지 -> 통과 (OK)
   }, [accessToken, segments, isLoading]);
 
   // 3. 로그인 함수

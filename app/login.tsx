@@ -1,3 +1,4 @@
+import { BASE_URL } from "@/api/client";
 import { setMemberId } from "@/api/memberStorage";
 import { login } from "@/api/service/authService";
 import { Button } from "@/components/ui/button";
@@ -8,10 +9,15 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/context/AuthContext";
 import { styles } from "@/styles/login.styles";
 import { Feather } from "@expo/vector-icons";
+import * as Linking from "expo-linking";
 import { Stack, useRouter } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import React, { useState } from "react";
-import { Alert, Image, ScrollView, Text, View } from "react-native";
+import { Alert, Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+// 웹 브라우저가 앱 내에서 닫히지 않고 남아있는 경우를 방지
+WebBrowser.maybeCompleteAuthSession();
+const BACKEND_URL = BASE_URL.replace("/api", ""); // BASE_URL에서 /api 부분 제거
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -20,8 +26,57 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const onOAuthLogin = (provider: "google" | "naver") => {
-    Alert.alert("OAuth Login", `${provider} login 은 지원되지 않고있습니다.`);
+  const onOAuthLogin = async (provider: "google" | "naver") => {
+    try {
+      // 1. 앱으로 돌아올 리다이렉트 URL 생성
+      // Expo Go 개발 환경에서는 보통 'exp://IP:8081/--/' 형태가 됨
+      const redirectUri = Linking.createURL("/");
+
+      console.log("Redirect URI:", redirectUri);
+
+      // 2. 백엔드 OAuth 인증 시작 URL 생성
+      // redirect_uri 파라미터를 붙여서 백엔드에게 "끝나면 여기로 보내줘"라고 알림
+      const authUrl = `${BACKEND_URL}/oauth2/authorization/${provider}?redirect_uri=${redirectUri}`;
+
+      // 3. 인앱 브라우저 열기
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+
+      // 4. 결과 처리
+      if (result.type === "success" && result.url) {
+        // 돌아온 URL 파싱 (예: exp://...?status=LOGIN&token=abcde...)
+        const { queryParams } = Linking.parse(result.url);
+
+        const status = queryParams?.status; // LOGIN 또는 REGISTER
+        const token = queryParams?.token; // Access Token
+        const refreshToken = queryParams?.refreshToken; // Refresh Token
+
+        if (!token) {
+          Alert.alert("오류", "인증 토큰을 받아오지 못했습니다.");
+          return;
+        }
+
+        if (status === "LOGIN") {
+          // [CASE 1] 기존 회원 -> 바로 로그인 처리
+          await signIn(token as string, refreshToken as string);
+          Alert.alert("성공", "소셜 로그인되었습니다.");
+        } else if (status === "REGISTER") {
+          // [CASE 2] 신규 회원 -> 회원가입 화면으로 이동
+          // 회원가입 화면에 registerToken을 전달하여 폼을 미리 채우게 함
+          router.push({
+            pathname: "/signup",
+            params: { registerToken: token },
+          });
+          Alert.alert("안내", "추가 정보를 입력하여 가입을 완료해주세요.");
+        }
+      }
+      // 사용자가 브라우저를 닫거나 취소한 경우 (result.type === 'cancel' or 'dismiss')
+      else {
+        console.log("Login cancelled or dismissed");
+      }
+    } catch (error) {
+      console.error("OAuth Error:", error);
+      Alert.alert("오류", "소셜 로그인 중 문제가 발생했습니다.");
+    }
   };
 
   const handleSubmit = async () => {
@@ -53,6 +108,15 @@ export default function LoginScreen() {
     } finally {
       setIsLoading(false); // 로딩 종료
     }
+  };
+
+  // 버튼 클릭 핸들러 추가
+  const handleFindId = () => {
+    router.push("/auth/findID");
+  };
+
+  const handleResetPassword = () => {
+    router.push("/auth/resetPW");
   };
 
   return (
@@ -102,6 +166,26 @@ export default function LoginScreen() {
               </Button>
             </View>
 
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "center",
+                alignItems: "center",
+                marginTop: 12,
+                gap: 12,
+              }}
+            >
+              <Pressable onPress={handleFindId}>
+                <Text style={{ fontSize: 13, color: "#666" }}>아이디 찾기</Text>
+              </Pressable>
+
+              <View style={{ width: 1, height: 12, backgroundColor: "#DDD" }} />
+
+              <Pressable onPress={handleResetPassword}>
+                <Text style={{ fontSize: 13, color: "#666" }}>비밀번호 재설정</Text>
+              </Pressable>
+            </View>
+
             <View style={styles.dividerContainer}>
               <Separator />
               <View style={styles.orLabelContainer}>
@@ -133,7 +217,7 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.signupContainer}>
-              <Text style={styles.signupText}>아직 계정이 없으신가요? </Text>
+              <Text style={styles.signupText}>아직 계정이 없으신가요?</Text>
               <Button
                 variant="link"
                 onPress={() => router.push("/signup")}
