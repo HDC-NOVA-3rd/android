@@ -15,4 +15,7 @@ export const API_PATHS = {
     APARTMENT: "/member/apartment",
     CHANGE_PW: "/member/password",
   },
+  CHAT: {
+    SEND: "/chat",
+  },
 };
