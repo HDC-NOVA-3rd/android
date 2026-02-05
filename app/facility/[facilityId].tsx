@@ -1,21 +1,75 @@
-import React from "react";
-import { View, Text, ScrollView, Image, TouchableOpacity } from "react-native";
-import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { Feather } from "@expo/vector-icons";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { getFacilityDetail, getFacilitySpaces } from "@/api/service/facilityService";
+import { Facility, Room } from "@/app/types/facility";
 import { Badge } from "@/components/ui/badge";
-import { facilities } from "@/app/data/mockData";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { styles } from "@/styles/facility/detail.styles";
-import { Room } from "@/app/types/facility";
 
 export default function FacilityDetailScreen() {
-  const { id } = useLocalSearchParams();
+  const { facilityId } = useLocalSearchParams();
   const router = useRouter();
+  const [facility, setFacility] = useState<Facility | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const facility = facilities.find((f) => f.id === id);
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!facilityId) return;
+
+      try {
+        const [detailData, spacesData] = await Promise.all([
+          getFacilityDetail(facilityId),
+          getFacilitySpaces(facilityId),
+        ]);
+
+        const rooms: Room[] = spacesData.map((space: any) => ({
+          id: space.id.toString(),
+          name: space.name,
+          maxCapacity: space.maxCapacity,
+          minCapacity: space.minCapacity,
+          pricePerHour: space.price,
+        }));
+
+        const mappedFacility: Facility = {
+          facilityId: detailData.facilityId.toString(),
+          capacity: 0,
+          name: detailData.name,
+          description: detailData.description,
+          category: "공용", // API 미제공
+          operatingHours: `${detailData.startHour} - ${detailData.endHour}`,
+          imageUrl: "https://via.placeholder.com/300", // 기본 이미지
+          rooms: rooms,
+        };
+        console.log(mappedFacility);
+
+        setFacility(mappedFacility);
+      } catch (error) {
+        console.error("Failed to fetch facility details", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [facilityId]);
+
+  const onSelectRoom = (room: Room) => {
+    // Reservation logic would go here
+    console.log("Selected room:", room);
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+  }
 
   if (!facility) {
     return (
@@ -24,11 +78,6 @@ export default function FacilityDetailScreen() {
       </View>
     );
   }
-
-  const onSelectRoom = (room: Room) => {
-    // Reservation logic would go here
-    console.log("Selected room:", room);
-  };
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -71,13 +120,6 @@ export default function FacilityDetailScreen() {
                   <Text style={styles.statValue}>{facility.operatingHours}</Text>
                 </View>
               </View>
-              <View style={styles.statItem}>
-                <Feather name="dollar-sign" size={20} color="#2563eb" />
-                <View style={styles.statTextContainer}>
-                  <Text style={styles.statLabel}>시간당 요금</Text>
-                  <Text style={styles.statValue}>{facility.pricePerHour.toLocaleString()}원</Text>
-                </View>
-              </View>
             </View>
           </View>
         </Card>
@@ -96,7 +138,8 @@ export default function FacilityDetailScreen() {
                   <View style={styles.roomInfoRow}>
                     <View style={styles.roomInfoItem}>
                       <Feather name="users" size={16} color="#4b5563" />
-                      <Text style={styles.roomInfoText}>최대 {room.capacity}명</Text>
+                      <Text style={styles.roomInfoText}>{room.minCapacity}</Text>
+                      <Text style={styles.roomInfoText}>~ {room.maxCapacity}명</Text>
                     </View>
                   </View>
                   <View style={styles.roomInfoRow}>

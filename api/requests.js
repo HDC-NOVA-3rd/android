@@ -15,4 +15,9 @@ export const API_PATHS = {
     APARTMENT: "/member/apartment",
     CHANGE_PW: "/member/password",
   },
+  FACILITY: {
+    FACILITY_LIST: "/apartment/{apartmentId}/facility",
+    DETAIL: "/facility/{facilityId}",
+    SPACES: "/facility/{facilityId}/space",
+  },
 };
