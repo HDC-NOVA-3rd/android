@@ -5,15 +5,18 @@ import { router } from "expo-router";
 import { Platform } from "react-native";
 import { getRefreshToken, removeRefreshToken, setRefreshToken } from "./tokenStorage";
 
-export const BASE_URL =
+export const BASE_URL = (
   process.env.EXPO_PUBLIC_API_URL ||
   Platform.select({
     // iOS 시뮬레이터용 (localhost 사용 가능)
     ios: "http://localhost:/api",
     // 안드로이드 에뮬레이터용 (10.0.2.2가 내 컴퓨터를 가리킴)
     android: "http://10.0.2.2:8080/api",
-  });
-console.log("BASE_URL =", BASE_URL);
+  })
+)
+  ?.trim()
+  .replace(/\/+$/, "");
+
 const client = axios.create({
   baseURL: BASE_URL,
   headers: { "Content-Type": "application/json" },
@@ -57,9 +60,17 @@ client.interceptors.response.use(
         if (!refreshToken) throw new Error("Refresh Token이 없습니다.");
 
         // 2. 토큰 갱신 API 호출 (요청 시 순수 axios 사용 -> Header에 Access Token 포함 X)
-        const { data } = await axios.post(`${BASE_URL}${API_PATHS.AUTH.REFRESH}`, {
-          refreshToken,
-        });
+        const { data } = await axios.post(
+          `${BASE_URL}${API_PATHS.AUTH.REFRESH}`,
+          {
+            refreshToken,
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        );
 
         const newAccessToken = data.accessToken;
 

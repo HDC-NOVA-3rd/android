@@ -24,3 +24,17 @@ export const getMyApartmentInfo = async () => {
     throw error;
   }
 };
+
+// 비밀번호 변경
+export const changePassword = async (currentPassword, newPassword) => {
+  try {
+    const response = await client.put(API_PATHS.MEMBER.CHANGE_PW, {
+      currentPassword,
+      newPassword,
+    });
+    return response.data;
+  } catch (error) {
+    console.error("비밀번호 변경 API 에러:", error);
+    throw error;
+  }
+};

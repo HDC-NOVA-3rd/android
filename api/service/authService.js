@@ -74,16 +74,55 @@ export const login = async (loginRequest) => {
   }
 };
 
+// access token 만료 시 갱신 요청
 export const refresh = async (refreshToken) => {
   try {
-    console.log("BASE_URL:", BASE_URL, API_PATHS.AUTH.REFRESH);
-    console.log("refreshToken:", refreshToken);
-    const response = await axios.post(`${BASE_URL}${API_PATHS.AUTH.REFRESH}`, {
-      refreshToken: refreshToken,
+    const url = `${BASE_URL}${API_PATHS.AUTH.REFRESH}`;
+    console.log(`[Token Refresh] Requesting: "${url}"`);
+    console.log(`[Token Refresh] Token: ${refreshToken?.substring(0, 10)}...`);
+
+    const response = await axios.post(
+      url,
+      {
+        refreshToken: refreshToken,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    );
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 아이디 찾기
+export const findId = async (name, phoneNumber) => {
+  try {
+    const response = await client.post(API_PATHS.AUTH.FIND_ID, {
+      name,
+      phoneNumber,
     });
     return response.data;
   } catch (error) {
-    console.error("토큰 갱신 API 에러:", error);
+    console.error("아이디 찾기 API 에러:", error);
+    throw error;
+  }
+};
+
+// 비밀번호 재설정
+export const resetPassword = async (loginId, name, phoneNumber) => {
+  try {
+    const response = await client.post(API_PATHS.AUTH.RESET_PW, {
+      loginId,
+      name,
+      phoneNumber,
+    });
+    return response.data;
+  } catch (error) {
+    console.error("비밀번호 재설정 API 에러:", error);
     throw error;
   }
 };

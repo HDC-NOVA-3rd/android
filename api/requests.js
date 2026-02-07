@@ -7,9 +7,17 @@ export const API_PATHS = {
     SIGNUP: "/member/signup",
     LOGIN: "/member/login",
     REFRESH: "/member/refresh",
+    FIND_ID: "/member/findInfo",
+    RESET_PW: "/member/resetPW",
   },
   MEMBER: {
     PROFILE: "/member/profile",
     APARTMENT: "/member/apartment",
+    CHANGE_PW: "/member/password",
+  },
+  CHAT: {
+    SEND: "/chat",
+    SESSIONS: "/chat/sessions",
+    SESSION_MESSAGES: (sessionId) => `/chat/sessions/${sessionId}/messages`,
   },
 };

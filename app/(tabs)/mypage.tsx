@@ -1,16 +1,16 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, ScrollView, Alert, ActivityIndicator } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { Feather, FontAwesome } from "@expo/vector-icons";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { getMyApartmentInfo, getMyInfo } from "@/api/service/memberService";
 import { User } from "@/app/types/user";
-import { styles } from "@/styles/tabs/mypage.styles";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/context/AuthContext";
-import { getMyInfo, getMyApartmentInfo } from "@/api/service/memberService";
+import { styles } from "@/styles/tabs/mypage.styles";
+import { Feather, FontAwesome } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Alert, ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function MyPageScreen() {
   const router = useRouter();
@@ -59,19 +59,19 @@ export default function MyPageScreen() {
 
   const getLoginMethodBadge = (method?: string) => {
     switch (method) {
-      case "google":
+      case "GOOGLE":
         return (
           <Badge variant="secondary" style={styles.googleBadge}>
             <Text style={styles.googleBadgeText}>Google 계정</Text>
           </Badge>
         );
-      case "naver":
+      case "NAVER":
         return (
           <Badge variant="secondary" style={styles.naverBadge}>
-            <Text style={styles.naverBadgeText}>네이버 계정</Text>
+            <Text style={styles.naverBadgeText}>NAVER 계정</Text>
           </Badge>
         );
-      case "email":
+      case "NORMAL":
       default:
         return (
           <Badge variant="secondary">
@@ -114,13 +114,9 @@ export default function MyPageScreen() {
                 <View>
                   <CardTitle style={{ fontSize: 20 }}>{user.name}</CardTitle>
                   <CardDescription>{user.email}</CardDescription>
-                  <View style={{ marginTop: 8 }}>{getLoginMethodBadge(user.loginMethod)}</View>
+                  <View style={{ marginTop: 8 }}>{getLoginMethodBadge(user.loginType)}</View>
                 </View>
               </View>
-              <Button variant="outline" size="sm">
-                <Feather name="edit-2" size={14} color="black" style={{ marginRight: 6 }} />
-                <Text>수정</Text>
-              </Button>
             </View>
           </CardHeader>
         </Card>
@@ -212,18 +208,19 @@ export default function MyPageScreen() {
           </CardHeader>
           <CardContent>
             <View style={styles.settingsList}>
-              <Button variant="outline" style={styles.settingButton}>
-                <Feather name="edit-2" size={16} color="black" style={styles.settingIcon} />
-                <Text>프로필 수정</Text>
+              <Button variant="outline" style={styles.settingButton} onPress={() => router.push("/member/changePW")}>
+                <Feather name="lock" size={16} color="black" style={styles.settingIcon} />
+                <Text>비밀번호 변경</Text>
               </Button>
+
               <Button variant="outline" style={styles.settingButton}>
                 <Feather name="mail" size={16} color="black" style={styles.settingIcon} />
-                <Text>이메일 변경</Text>
+                <Text>커뮤니티 예약내역 확인</Text>
               </Button>
-              <Button variant="outline" style={styles.settingButton}>
+              {/* <Button variant="outline" style={styles.settingButton}>
                 <Feather name="phone" size={16} color="black" style={styles.settingIcon} />
                 <Text>연락처 변경</Text>
-              </Button>
+              </Button> */}
               <Separator />
               <Button variant="destructive" style={styles.settingButton} onPress={onLogout}>
                 <Feather name="log-out" size={16} color="white" style={styles.settingIcon} />
