@@ -17,7 +17,7 @@ export default function FacilityInfoCard({ data }: { data: FacilityInfoData }) {
       </Text>
 
       <Text style={{ fontSize: 12, color: "#333", marginTop: 2 }}>
-        지금 예약 가능: {data.reservableNow ? "가능" : "불가"}
+        예약 : {data.reservableNow ? "가능" : "불가"}
       </Text>
     </View>
   );
