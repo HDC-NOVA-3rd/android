@@ -1,19 +1,19 @@
 // api/client.ts
+import { API_PATHS } from "@/api/requests";
 import axios from "axios";
 import { router } from "expo-router";
 import { Platform } from "react-native";
 import { getRefreshToken, removeRefreshToken, setRefreshToken } from "./tokenStorage";
-import { API_PATHS } from "@/api/requests";
 
 export const BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ||
   Platform.select({
     // iOS 시뮬레이터용 (localhost 사용 가능)
-    ios: "http://localhost:8080/api",
+    ios: "http://localhost:/api",
     // 안드로이드 에뮬레이터용 (10.0.2.2가 내 컴퓨터를 가리킴)
     android: "http://10.0.2.2:8080/api",
   });
-
+console.log("BASE_URL =", BASE_URL);
 const client = axios.create({
   baseURL: BASE_URL,
   headers: { "Content-Type": "application/json" },
