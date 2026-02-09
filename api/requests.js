@@ -19,5 +19,8 @@ export const API_PATHS = {
     SEND: "/chat",
     SESSIONS: "/chat/sessions",
     SESSION_MESSAGES: (sessionId) => `/chat/sessions/${sessionId}/messages`,
+
+    DELETE_SESSION: (sessionId) => `/chat/sessions/${sessionId}`,
+    DELETE_ALL_SESSIONS: "/chat/sessions",
   },
 };
