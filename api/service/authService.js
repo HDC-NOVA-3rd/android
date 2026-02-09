@@ -1,6 +1,6 @@
+import axios from "axios";
 import client, { BASE_URL } from "../client";
 import { API_PATHS } from "../requests";
-import axios from "axios";
 
 /** 회원가입 페이지, 로그인 페이지에 사용되는 API 목록 */
 
@@ -70,6 +70,18 @@ export const login = async (loginRequest) => {
     return response.data;
   } catch (error) {
     console.error("로그인 API 에러:", error);
+    throw error;
+  }
+};
+// 인증 코드 교환 API 호출 함수
+export const exchangeAuthCode = async (code) => {
+  try {
+    const response = await client.post("/member/oauth/exchange", {
+      code,
+    });
+    return response.data;
+  } catch (error) {
+    console.error("🔥 Auth Code 교환 실패 상세:", error.response?.data || error.message);
     throw error;
   }
 };

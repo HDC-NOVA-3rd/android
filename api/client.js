@@ -22,6 +22,17 @@ const client = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+// [추가] 토큰 갱신 중인지 확인하는 플래그
+let isRefreshing = false;
+// [추가] 갱신 중 들어온 요청들을 대기시킬 큐
+let refreshSubscribers = [];
+
+// 대기 중인 요청들을 처리하는 함수
+const onRefreshed = (accessToken) => {
+  refreshSubscribers.map((callback) => callback(accessToken));
+  refreshSubscribers = [];
+};
+
 // [요청 인터셉터] 모든 요청 전에 실행 -> client 요청 전에 토큰 첨부 (없으면 헤더에 토큰 없이 전송)
 client.interceptors.request.use(
   async (config) => {
@@ -49,6 +60,17 @@ client.interceptors.response.use(
 
     // 401 Unauthorized 에러이고, 아직 재시도(_retry)하지 않은 요청이라면
     if (error.response?.status === 401 && !originalRequest._retry) {
+      // 1. 이미 갱신 중이라면? -> 큐에 넣고 대기
+      if (isRefreshing) {
+        return new Promise((resolve) => {
+          refreshSubscribers.push((accessToken) => {
+            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+            resolve(client(originalRequest));
+          });
+        });
+      }
+
+      isRefreshing = true; // 갱신 중 플래그 설정
       originalRequest._retry = true; // 무한 루프 방지
 
       try {
@@ -62,9 +84,7 @@ client.interceptors.response.use(
         // 2. 토큰 갱신 API 호출 (요청 시 순수 axios 사용 -> Header에 Access Token 포함 X)
         const { data } = await axios.post(
           `${BASE_URL}${API_PATHS.AUTH.REFRESH}`,
-          {
-            refreshToken,
-          },
+          { refreshToken },
           {
             headers: {
               "Content-Type": "application/json",
@@ -82,11 +102,15 @@ client.interceptors.response.use(
         // 3. 새 토큰으로 설정 갱신
         // [중요] 메모리(axios defaults)에 새 토큰 장착 -> 이후 요청부터는 이거 씀
         client.defaults.headers.common["Authorization"] = `Bearer ${newAccessToken}`;
+        console.log("갱신된 Access Token:", newAccessToken);
+        // 대기 중이던 요청들 재실행
+        onRefreshed(newAccessToken);
 
         // 4. 실패했던 원래 요청의 헤더를 바꿔서 재요청
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
 
         console.log("토큰 갱신 성공. 원래 요청 재시도.");
+
         return client(originalRequest);
       } catch (refreshError) {
         // Refresh Token도 만료되었거나 갱신 실패 시
@@ -99,6 +123,8 @@ client.interceptors.response.use(
         router.replace("/login");
 
         return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false; // 갱신 종료 (성공이든 실패든)
       }
     }
     return Promise.reject(error);
