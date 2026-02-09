@@ -1,6 +1,6 @@
 import { BASE_URL } from "@/api/client";
+import { exchangeAuthCode, login } from "@/api/service/authService";
 import { setMemberId } from "@/api/memberStorage";
-import { login } from "@/api/service/authService";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,11 +28,10 @@ export default function LoginScreen() {
 
   const onOAuthLogin = async (provider: "google" | "naver") => {
     try {
+      setIsLoading(true);
       // 1. 앱으로 돌아올 리다이렉트 URL 생성
       // Expo Go 개발 환경에서는 보통 'exp://IP:8081/--/' 형태가 됨
       const redirectUri = Linking.createURL("/");
-
-      console.log("Redirect URI:", redirectUri);
 
       // 2. 백엔드 OAuth 인증 시작 URL 생성
       // redirect_uri 파라미터를 붙여서 백엔드에게 "끝나면 여기로 보내줘"라고 알림
@@ -46,36 +45,47 @@ export default function LoginScreen() {
         // 돌아온 URL 파싱 (예: exp://...?status=LOGIN&token=abcde...)
         const { queryParams } = Linking.parse(result.url);
 
-        const status = queryParams?.status; // LOGIN 또는 REGISTER
-        const token = queryParams?.token; // Access Token
-        const refreshToken = queryParams?.refreshToken; // Refresh Token
+        const code = queryParams?.code; // [핵심] 1회용 인증 코드
 
-        if (!token) {
-          Alert.alert("오류", "인증 토큰을 받아오지 못했습니다.");
+        if (!code) {
+          Alert.alert("오류", "인증 코드를 받아오지 못했습니다.");
           return;
         }
+        console.log("받은 Auth Code:", code);
 
-        if (status === "LOGIN") {
-          // [CASE 1] 기존 회원 -> 바로 로그인 처리
-          await signIn(token as string, refreshToken as string);
+        // [핵심 변경] 5. 인증 코드를 서버로 보내서 실제 토큰으로 교환 (POST 요청)
+        // 이 과정은 뒷단에서 일어나므로 사용자는 URL에서 토큰을 볼 수 없습니다.
+        const data = await exchangeAuthCode(code);
+
+        // 6. 교환 결과에 따른 분기 처리
+        // [CASE 1] 로그인 성공 (이미 가입된 회원)
+        if (data.type === "LOGIN" && data.tokenResponse) {
+          const { accessToken, refreshToken } = data.tokenResponse;
+
+          await signIn(accessToken, refreshToken); // Context 업데이트 및 로그인 처리
           Alert.alert("성공", "소셜 로그인되었습니다.");
-        } else if (status === "REGISTER") {
-          // [CASE 2] 신규 회원 -> 회원가입 화면으로 이동
-          // 회원가입 화면에 registerToken을 전달하여 폼을 미리 채우게 함
+        }
+        // [CASE 2] 회원가입 필요 (신규 회원)
+        // registerToken을 가지고 회원가입 화면으로 이동
+        else if (data.type === "REGISTER" && data.registerToken) {
           router.push({
             pathname: "/signup",
-            params: { registerToken: token },
+            params: { registerToken: data.registerToken },
           });
           Alert.alert("안내", "추가 정보를 입력하여 가입을 완료해주세요.");
+        } else {
+          throw new Error("서버 응답 형식이 올바르지 않습니다.");
         }
       }
       // 사용자가 브라우저를 닫거나 취소한 경우 (result.type === 'cancel' or 'dismiss')
       else {
-        console.log("Login cancelled or dismissed");
+        console.log("OAuth Login Cancelled");
       }
     } catch (error) {
       console.error("OAuth Error:", error);
       Alert.alert("오류", "소셜 로그인 중 문제가 발생했습니다.");
+    } finally {
+      setIsLoading(false); // 로딩 종료
     }
   };
 

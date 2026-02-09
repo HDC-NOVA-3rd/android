@@ -1,21 +1,60 @@
-import React, { useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Image, TextInput } from "react-native";
-import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { jwtDecode } from "jwt-decode";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { facilities } from "@/app/data/mockData";
-import { styles } from "@/styles/facility/list.styles";
+import { getFacilityList } from "@/api/service/facilityService";
 import { Facility } from "@/app/types/facility";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { useAuth } from "@/context/AuthContext";
+import { styles } from "@/styles/facility/list.styles";
 
 export default function FacilityListScreen() {
   const router = useRouter();
+  const { accessToken } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("전체");
+  const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFacilities = async () => {
+      if (!accessToken) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const decoded: any = jwtDecode(accessToken);
+        const apartmentId = decoded.apartmentId;
+
+        if (apartmentId) {
+          const data = await getFacilityList(apartmentId);
+          const mappedFacilities: Facility[] = data.map((item: any) => ({
+            facilityId: item.facilityId.toString(),
+            name: item.name,
+            description: item.description,
+            category: "공용", // API에서 카테고리를 제공하지 않으므로 기본값 설정
+            capacity: 0, // 기본값
+            operatingHours: `${item.startHour} - ${item.endHour}`,
+            imageUrl: "https://via.placeholder.com/300", // 기본 이미지
+          }));
+          setFacilities(mappedFacilities);
+        }
+      } catch (error) {
+        console.error("Failed to fetch facilities", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFacilities();
+  }, [accessToken]);
 
   const categories = ["전체", ...Array.from(new Set(facilities.map((f) => f.category)))];
 
@@ -28,8 +67,16 @@ export default function FacilityListScreen() {
   });
 
   const onSelectFacility = (facility: Facility) => {
-    router.push(`/facility/${facility.id}`);
+    router.push(`/facility/${facility.facilityId}`);
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -72,7 +119,7 @@ export default function FacilityListScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         {filteredFacilities.map((facility) => (
-          <TouchableOpacity key={facility.id} activeOpacity={0.9} onPress={() => onSelectFacility(facility)}>
+          <TouchableOpacity key={facility.facilityId} activeOpacity={0.9} onPress={() => onSelectFacility(facility)}>
             <Card style={styles.card}>
               <Image source={{ uri: facility.imageUrl }} style={styles.cardImage} resizeMode="cover" />
               <CardHeader style={styles.cardHeader}>
@@ -90,10 +137,6 @@ export default function FacilityListScreen() {
                 <View style={styles.infoRow}>
                   <Feather name="clock" size={16} color="#4b5563" />
                   <Text style={styles.infoText}>{facility.operatingHours}</Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Feather name="dollar-sign" size={16} color="#4b5563" />
-                  <Text style={styles.infoText}>{facility.pricePerHour.toLocaleString()}원/시간</Text>
                 </View>
                 <Button style={styles.bookButton} onPress={() => onSelectFacility(facility)}>
                   <Text style={{ color: "white" }}>예약하기</Text>
