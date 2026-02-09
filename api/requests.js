@@ -19,11 +19,12 @@ export const API_PATHS = {
     FACILITY_LIST: "/apartment/{apartmentId}/facility",
     DETAIL: "/facility/{facilityId}",
     SPACES: "/facility/{facilityId}/space",
+  },
+
   CHAT: {
     SEND: "/chat",
     SESSIONS: "/chat/sessions",
     SESSION_MESSAGES: (sessionId) => `/chat/sessions/${sessionId}/messages`,
-
     DELETE_SESSION: (sessionId) => `/chat/sessions/${sessionId}`,
     DELETE_ALL_SESSIONS: "/chat/sessions",
   },
