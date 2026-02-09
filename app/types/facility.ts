@@ -1,4 +1,4 @@
-export interface Room {
+export interface Space {
   id: string;
   name: string;
   maxCapacity: number;
@@ -14,5 +14,5 @@ export interface Facility {
   capacity: number;
   operatingHours: string;
   imageUrl: string;
-  rooms: Room[];
+  spaces: Space[];
 }

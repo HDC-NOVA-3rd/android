@@ -19,5 +19,13 @@ export const API_PATHS = {
     FACILITY_LIST: "/apartment/{apartmentId}/facility",
     DETAIL: "/facility/{facilityId}",
     SPACES: "/facility/{facilityId}/space",
+    SPACE_DETAIL: "/facility/space/{spaceId}",
+  },
+  RESERVATION: {
+    CREATE: "/reservation",
+    MY_LIST: "/reservation/me",
+    DETAIL: "/reservation/{reservationId}",
+    CANCEL: "/reservation/{reservationId}/cancel",
+    OCCUPIED: "/reservation/availability",
   },
 };

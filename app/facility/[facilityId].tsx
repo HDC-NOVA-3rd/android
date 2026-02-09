@@ -5,7 +5,7 @@ import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } fr
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { getFacilityDetail, getFacilitySpaces } from "@/api/service/facilityService";
-import { Facility, Room } from "@/app/types/facility";
+import { Facility, Space } from "@/app/types/facility";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -27,7 +27,7 @@ export default function FacilityDetailScreen() {
           getFacilitySpaces(facilityId),
         ]);
 
-        const rooms: Room[] = spacesData.map((space: any) => ({
+        const spaces: Space[] = spacesData.map((space: any) => ({
           id: space.id.toString(),
           name: space.name,
           maxCapacity: space.maxCapacity,
@@ -43,7 +43,7 @@ export default function FacilityDetailScreen() {
           category: "공용", // API 미제공
           operatingHours: `${detailData.startHour} - ${detailData.endHour}`,
           imageUrl: "https://via.placeholder.com/300", // 기본 이미지
-          rooms: rooms,
+          spaces: spaces,
         };
         console.log(mappedFacility);
 
@@ -58,9 +58,10 @@ export default function FacilityDetailScreen() {
     fetchData();
   }, [facilityId]);
 
-  const onSelectRoom = (room: Room) => {
+  const onSelectRoom = (space: Space) => {
     // Reservation logic would go here
-    console.log("Selected room:", room);
+    console.log("Selected space:", space);
+    router.push(`/facility/reservation/${space.id}`);
   };
 
   if (loading) {
@@ -128,27 +129,27 @@ export default function FacilityDetailScreen() {
         <View>
           <Text style={styles.sectionTitle}>이용 가능한 공간</Text>
           <View style={styles.roomGrid}>
-            {facility.rooms.map((room) => (
-              <Card key={room.id} style={styles.roomCard}>
+            {facility.spaces.map((space) => (
+              <Card key={space.id} style={styles.roomCard}>
                 <View style={styles.roomCardHeader}>
                   <Feather name="map-pin" size={20} color="#2563eb" />
-                  <Text style={styles.roomTitle}>{room.name}</Text>
+                  <Text style={styles.roomTitle}>{space.name}</Text>
                 </View>
                 <View style={styles.roomCardContent}>
                   <View style={styles.roomInfoRow}>
                     <View style={styles.roomInfoItem}>
                       <Feather name="users" size={16} color="#4b5563" />
-                      <Text style={styles.roomInfoText}>{room.minCapacity}</Text>
-                      <Text style={styles.roomInfoText}>~ {room.maxCapacity}명</Text>
+                      <Text style={styles.roomInfoText}>{space.minCapacity}</Text>
+                      <Text style={styles.roomInfoText}>~ {space.maxCapacity}명</Text>
                     </View>
                   </View>
                   <View style={styles.roomInfoRow}>
                     <View style={styles.roomInfoItem}>
                       <Feather name="dollar-sign" size={16} color="#4b5563" />
-                      <Text style={styles.roomInfoText}>{room.pricePerHour.toLocaleString()}원/시간</Text>
+                      <Text style={styles.roomInfoText}>{space.pricePerHour.toLocaleString()}원/시간</Text>
                     </View>
                   </View>
-                  <Button style={styles.roomButton} onPress={() => onSelectRoom(room)}>
+                  <Button style={styles.roomButton} onPress={() => onSelectRoom(space)}>
                     <Text style={{ color: "white" }}>이 공간 예약하기</Text>
                   </Button>
                 </View>
