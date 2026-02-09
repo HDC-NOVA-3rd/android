@@ -36,3 +36,14 @@ export const getFacilitySpaces = async (facilityId, capacity = null) => {
     throw error;
   }
 };
+
+export const getSpaceDetail = async (spaceId) => {
+  try {
+    const url = API_PATHS.FACILITY.SPACE_DETAIL.replace("{spaceId}", spaceId);
+    const response = await client.get(url);
+    return response.data;
+  } catch (error) {
+    console.error("공간 상세 정보 조회 실패:", error);
+    throw error;
+  }
+};
