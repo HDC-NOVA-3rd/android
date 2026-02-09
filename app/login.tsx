@@ -1,5 +1,6 @@
 import { BASE_URL } from "@/api/client";
 import { exchangeAuthCode, login } from "@/api/service/authService";
+import { setMemberId } from "@/api/memberStorage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -103,7 +104,7 @@ export default function LoginScreen() {
       // 1. API 호출
       const response = await login({ loginId: id, password: pass });
       console.log("로그인 성공:", response);
-
+      await setMemberId(response.memberId);
       // 2. 토큰 저장 (AuthContext를 통해 상태 업데이트 및 자동 리다이렉트)
       if (response.accessToken) {
         await signIn(response.accessToken, response.refreshToken);

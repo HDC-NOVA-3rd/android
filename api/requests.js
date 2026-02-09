@@ -28,4 +28,12 @@ export const API_PATHS = {
     CANCEL: "/reservation/{reservationId}/cancel",
     OCCUPIED: "/reservation/availability",
   },
+  CHAT: {
+    SEND: "/chat",
+    SESSIONS: "/chat/sessions",
+    SESSION_MESSAGES: (sessionId) => `/chat/sessions/${sessionId}/messages`,
+
+    DELETE_SESSION: (sessionId) => `/chat/sessions/${sessionId}`,
+    DELETE_ALL_SESSIONS: "/chat/sessions",
+  },
 };
