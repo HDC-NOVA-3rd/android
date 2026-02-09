@@ -213,7 +213,7 @@ export default function MyPageScreen() {
                 <Text>비밀번호 변경</Text>
               </Button>
 
-              <Button variant="outline" style={styles.settingButton}>
+              <Button variant="outline" style={styles.settingButton} onPress={() => router.push("/member/reservations")}>
                 <Feather name="mail" size={16} color="black" style={styles.settingIcon} />
                 <Text>커뮤니티 예약내역 확인</Text>
               </Button>
