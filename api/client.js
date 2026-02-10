@@ -57,9 +57,20 @@ client.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const response = error.response;
+    // 1. 응답이 아예 없는 경우 (네트워크 오류 등)
+    if (!response) {
+      return Promise.reject(error);
+    }
+    // 백엔드에서 보내준 커스텀 에러 코드 추출 ({ code: "ACCESS_TOKEN_EXPIRED", message: "..." })
+    const errorCode = response.data?.code;
+    const status = response.status;
 
-    // 401 Unauthorized 에러이고, 아직 재시도(_retry)하지 않은 요청이라면
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // ------------------------------------------------------------------
+    // [Case 1] Access Token 만료 -> 갱신 시도 (Silent Refresh)
+    // 조건: 401 에러이고, 코드가 'ACCESS_TOKEN_EXPIRED' 일 때만 실행
+    // ------------------------------------------------------------------
+    if (status === 401 && errorCode === "ACCESS_TOKEN_EXPIRED" && !originalRequest._retry) {
       // 1. 이미 갱신 중이라면? -> 큐에 넣고 대기
       if (isRefreshing) {
         return new Promise((resolve) => {
@@ -75,7 +86,6 @@ client.interceptors.response.use(
 
       try {
         console.log("Access Token 만료 감지. 토큰 갱신 시도...");
-
         // 1. SecureStore에서 Refresh Token 가져오기
         const refreshToken = await getRefreshToken();
 
@@ -94,7 +104,7 @@ client.interceptors.response.use(
 
         const newAccessToken = data.accessToken;
 
-        // (옵션) Refresh Token Rotation을 사용한다면 새 RT 저장
+        // Refresh Token Rotation을 사용 -> 새 RT 저장
         if (data.refreshToken) {
           await setRefreshToken(data.refreshToken);
         }
@@ -108,14 +118,13 @@ client.interceptors.response.use(
 
         // 4. 실패했던 원래 요청의 헤더를 바꿔서 재요청
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-
-        console.log("토큰 갱신 성공. 원래 요청 재시도.");
-
         return client(originalRequest);
       } catch (refreshError) {
+        // ------------------------------------------------------------------
+        // [Case 3] 리프레시 토큰 만료/위조 -> 강제 로그아웃
+        // ------------------------------------------------------------------
         // Refresh Token도 만료되었거나 갱신 실패 시
         console.error("세션 만료 (갱신 실패):", refreshError);
-
         // 데이터 정리 및 강제 로그아웃
         await removeRefreshToken();
         delete client.defaults.headers.common["Authorization"];
@@ -126,6 +135,14 @@ client.interceptors.response.use(
       } finally {
         isRefreshing = false; // 갱신 종료 (성공이든 실패든)
       }
+    }
+    // ------------------------------------------------------------------
+    // [Case 2] 단순 로그인 실패, 비번 틀림 등 -> 그냥 에러 던짐 (화면에서 처리)
+    // 401이지만 토큰 만료가 아닌 경우 (예: LOGIN_FAILED)
+    // ------------------------------------------------------------------
+    if (status === 401 && errorCode !== "ACCESS_TOKEN_EXPIRED") {
+      console.log("🚫 인증 실패 (로그인 오류):", errorCode);
+      // 여기서 갱신 로직을 타지 않고 바로 reject 하므로 무한 루프가 방지됩니다.
     }
     return Promise.reject(error);
   },

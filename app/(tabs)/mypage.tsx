@@ -27,17 +27,17 @@ export default function MyPageScreen() {
       setLoading(true);
       const [profileData, apartmentData] = await Promise.all([getMyInfo(), getMyApartmentInfo()]);
 
-      // Assuming the API responses map to the User interface fields
-      // Adjust field mapping as necessary based on actual API response structure
-      console.log("Profile Data:", profileData);
-      console.log("Apartment Data:", apartmentData);
       const userData: User = {
         ...profileData,
         ...apartmentData,
       };
       setUser(userData);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch user data", error);
+      // [수정] Refresh Token 없음 에러 등 인증 관련 에러면 알림창 띄우지 않음 (client.js가 로그인 화면으로 보냄)
+      if (error.message === "Refresh Token이 없습니다." || error.message?.includes("Token")) {
+        return;
+      }
       Alert.alert("오류", "사용자 정보를 불러오는데 실패했습니다.");
     } finally {
       setLoading(false);
@@ -212,15 +212,14 @@ export default function MyPageScreen() {
                 <Feather name="lock" size={16} color="black" style={styles.settingIcon} />
                 <Text>비밀번호 변경</Text>
               </Button>
-
-              <Button variant="outline" style={styles.settingButton} onPress={() => router.push("/member/reservations")}>
+              <Button
+                variant="outline"
+                style={styles.settingButton}
+                onPress={() => router.push("/member/reservations")}
+              >
                 <Feather name="mail" size={16} color="black" style={styles.settingIcon} />
                 <Text>커뮤니티 예약내역 확인</Text>
               </Button>
-              {/* <Button variant="outline" style={styles.settingButton}>
-                <Feather name="phone" size={16} color="black" style={styles.settingIcon} />
-                <Text>연락처 변경</Text>
-              </Button> */}
               <Separator />
               <Button variant="destructive" style={styles.settingButton} onPress={onLogout}>
                 <Feather name="log-out" size={16} color="white" style={styles.settingIcon} />
