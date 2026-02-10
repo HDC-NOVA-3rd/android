@@ -22,6 +22,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
 import type { ChatIntent } from "../../.expo/types/chat";
 import { getMemberId } from "../../api/memberStorage";
 import {
@@ -122,8 +123,9 @@ export default function ChatScreen() {
   // 특정 세션 로드 (memberId 타이밍 이슈 방지: mid를 인자로 받게)
   const loadSession = async (mid: number, targetSessionId: string) => {
     setSessionId(targetSessionId);
-
+    // 메시지 로드
     const serverMsgs = await getChatMessages(mid, targetSessionId);
+    // 변환
     const uiMsgs: ChatItem[] = serverMsgs.map((m) => ({
       id: String((m as any).id ?? makeId()),
       role: m.role === "ASSISTANT" ? "ASSISTANT" : "USER",
@@ -132,6 +134,18 @@ export default function ChatScreen() {
     }));
 
     setMessages(uiMsgs.length ? uiMsgs : [{ ...WELCOME, id: makeId(), createdAt: Date.now() }]);
+  };
+
+  // Sidebar Peek(롱프레스 미리보기)용: 최근 n개 메시지 가져오기
+  const handlePeekMessages = async (sid: string) => {
+    if (!memberId) return [];
+    const serverMsgs = await getChatMessages(memberId, sid);
+    // 최근 n개
+    return serverMsgs.map((m) => ({
+      role: m.role === "ASSISTANT" ? "ASSISTANT" : "USER",
+      content: m.content,
+      createdAt: m.createdAt,
+    }));
   };
 
   // 새 채팅 시작
@@ -164,25 +178,33 @@ export default function ChatScreen() {
     onNewChat();
   };
 
-  // ✅ 세션 리스트(아카이브 숨김 적용) + 핀 우선 정렬 (ChatSidebar에 보내도 되고, 여기서 보내도 됨)
+  //  세션 리스트: "전체를 Sidebar로 전달" + 핀 우선 + (아카이브는 뒤로)
   const sessionsForSidebar = useMemo(() => {
-    const visible = sessions.filter((s) => !archivedIds.has(s.sessionId));
     const pinned: ChatSessionDto[] = [];
     const normal: ChatSessionDto[] = [];
-    for (const s of visible) {
-      if (pinnedIds.has(s.sessionId)) pinned.push(s);
+    const archived: ChatSessionDto[] = [];
+
+    for (const s of sessions) {
+      const sid = s.sessionId;
+      const isA = archivedIds.has(sid);
+      const isP = pinnedIds.has(sid);
+
+      if (isA) archived.push(s);
+      else if (isP) pinned.push(s);
       else normal.push(s);
     }
-    return [...pinned, ...normal];
+
+    // pinned / normal / archived 순
+    return [...pinned, ...normal, ...archived];
   }, [sessions, archivedIds, pinnedIds]);
 
-  // ✅ 핀 토글
+  //  핀 토글
   const handleTogglePin = async (sid: string) => {
     const next = await togglePinnedId(sid);
     setPinnedIds(new Set(next));
   };
 
-  // ✅ 아카이브/복원
+  //  아카이브/복원
   const handleArchiveSession = async (sid: string) => {
     const next = await archiveId(sid);
     setArchivedIds(new Set(next));
@@ -196,7 +218,7 @@ export default function ChatScreen() {
     setArchivedIds(new Set(next));
   };
 
-  // ✅ 오래된 세션 정리(아카이브로 안전하게)
+  //  오래된 세션 정리(아카이브로 안전하게)
   const handleCleanupOldSessions = async (days: number) => {
     const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
 
@@ -223,7 +245,7 @@ export default function ChatScreen() {
     if (targets.includes(sessionId)) onNewChat();
   };
 
-  // ✅ 디버그 토글
+  //  디버그 토글
   const handleToggleDebug = async () => {
     const next = !debugEnabled;
     setDebugEnabledState(next);
@@ -335,6 +357,9 @@ export default function ChatScreen() {
               onDeleteSession={handleDeleteSession}
               onDeleteAll={handleDeleteAll}
               onQuickSend={handleQuickSendFromSidebar}
+              // ✅ Peek props
+              onPeekMessages={handlePeekMessages}
+              peekLimit={5}
               // ✅ 확장 props
               pinnedIds={pinnedIds}
               archivedIds={archivedIds}
@@ -465,7 +490,10 @@ export default function ChatScreen() {
                     closeDrawer();
                   }}
                   onQuickSend={handleQuickSendFromSidebar}
-                  // ✅ 확장 props
+                  //  Peek props
+                  onPeekMessages={handlePeekMessages}
+                  peekLimit={5}
+                  //  확장 props
                   pinnedIds={pinnedIds}
                   archivedIds={archivedIds}
                   debugEnabled={debugEnabled}
