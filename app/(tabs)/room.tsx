@@ -30,6 +30,7 @@ export default function RoomScreen() {
 
   // ✅ 토픽 통일
   const HO_ID = "1";
+  const DEFAULT_LED_BRIGHTNESS = 50;
   const TOPIC_CMD = `hdc/${HO_ID}/assistant/execute/req`;
 
   // ✅ 센서 토픽도 통일(스프링에 저장되는 그 토픽)
@@ -117,8 +118,12 @@ export default function RoomScreen() {
         // 2) 디바이스 초기값
         const led = data.device.find((d) => d.type === "LED" || d.deviceCode === "light-1");
         if (led) {
-          setLedOn(Boolean(led.power));
-          if (typeof led.brightness === "number") setBrightness(led.brightness);
+          const b = typeof led.brightness === "number" ? led.brightness : 0;
+
+          setBrightness(b);
+
+          // LED는 "밝기 기준"으로 토글 상태 결정
+          setLedOn(b > 0);
         }
 
         const fan = data.device.find((d) => d.type === "FAN" || d.deviceCode === "fan-1");
@@ -171,20 +176,31 @@ export default function RoomScreen() {
    * ✅ 전등 토글: MQTT + PATCH
    */
   const onToggleLed = async (value: boolean) => {
-    setLedOn(value);
+    if (!value) {
+      // OFF: power만 끄고, brightness는 유지(0이든 34든 그대로 둠)
+      setLedOn(false);
 
-    // MQTT (통일)
-    publishCommand("light-1", "POWER", value ? "ON" : "OFF");
+      publishCommand("light-1", "POWER", "OFF");
 
-    // DB 저장 (스냅샷용)
+      await patchDeviceState({
+        devices: [{ deviceCode: "light-1", power: false }],
+      });
+      return;
+    }
+
+    // ON 요청
+    // 밝기가 0이면 기본 밝기로 올리고 켠다
+    const nextBrightness = brightness > 0 ? brightness : DEFAULT_LED_BRIGHTNESS;
+
+    setBrightness(nextBrightness);
+    setLedOn(true);
+
+    // MQTT: 밝기 먼저 보내고, 그 다음 POWER ON (안정적)
+    publishCommand("light-1", "BRIGHTNESS", nextBrightness);
+    publishCommand("light-1", "POWER", "ON");
+
     await patchDeviceState({
-      devices: [
-        {
-          deviceCode: "light-1",
-          power: value,
-          brightness: value ? brightness : 0,
-        },
-      ],
+      devices: [{ deviceCode: "light-1", power: true, brightness: nextBrightness }],
     });
   };
 
@@ -195,18 +211,15 @@ export default function RoomScreen() {
     const b = Math.round(value);
     setBrightness(b);
 
-    // MQTT (통일)
-    publishCommand("light-1", "BRIGHTNESS", b);
+    const nextPower = b > 0;
+    setLedOn(nextPower);
 
-    // DB 저장
+    // MQTT: 밝기 보내고, 0이면 OFF / 아니면 ON
+    publishCommand("light-1", "BRIGHTNESS", b);
+    publishCommand("light-1", "POWER", nextPower ? "ON" : "OFF");
+
     await patchDeviceState({
-      devices: [
-        {
-          deviceCode: "light-1",
-          power: ledOn,
-          brightness: b,
-        },
-      ],
+      devices: [{ deviceCode: "light-1", power: nextPower, brightness: b }],
     });
   };
 
@@ -240,15 +253,14 @@ export default function RoomScreen() {
     // MQTT (통일)
     publishCommand("fan-1", "SET_TEMP", rounded);
 
-    // (선택) DB에도 저장하고 싶으면 아래 주석 해제
-    // await patchDeviceState({
-    //   devices: [
-    //     {
-    //       deviceCode: "fan-1",
-    //       targetTemp: rounded,
-    //     },
-    //   ],
-    // });
+    await patchDeviceState({
+      devices: [
+        {
+          deviceCode: "fan-1",
+          targetTemp: rounded,
+        },
+      ],
+    });
   };
 
   return (
@@ -277,7 +289,6 @@ export default function RoomScreen() {
           maximumValue={100}
           step={1}
           value={brightness}
-          disabled={!ledOn}
           onValueChange={(v) => setBrightness(Math.round(v))}
           onSlidingComplete={onBrightnessCommit}
         />
