@@ -34,7 +34,7 @@ export default function LoginScreen() {
       const redirectUri = Linking.createURL("/");
 
       // 2. 백엔드 OAuth 인증 시작 URL 생성
-      // redirect_uri 파라미터를 붙여서 백엔드에게 "끝나면 여기로 보내줘"라고 알림
+      // redirect_uri 파라미터 포함
       const authUrl = `${BACKEND_URL}/oauth2/authorization/${provider}?redirect_uri=${redirectUri}`;
 
       // 3. 인앱 브라우저 열기
@@ -44,24 +44,27 @@ export default function LoginScreen() {
       if (result.type === "success" && result.url) {
         // 돌아온 URL 파싱 (예: exp://...?status=LOGIN&token=abcde...)
         const { queryParams } = Linking.parse(result.url);
-
+        // 에러 상황 처리 (백엔드 OAuthFailureHandler에서 보낸 error 파라미터 확인)
+        if (queryParams?.status === "FAIL") {
+          // queryParams.error가 배열일 수도 있으므로 처리
+          const errorMsg = Array.isArray(queryParams.error) ? queryParams.error[0] : queryParams.error;
+          Alert.alert("소셜 로그인 실패", errorMsg || "알 수 없는 오류가 발생했습니다.");
+          return;
+        }
         const code = queryParams?.code; // [핵심] 1회용 인증 코드
 
         if (!code) {
           Alert.alert("오류", "인증 코드를 받아오지 못했습니다.");
           return;
         }
-        console.log("받은 Auth Code:", code);
 
-        // [핵심 변경] 5. 인증 코드를 서버로 보내서 실제 토큰으로 교환 (POST 요청)
-        // 이 과정은 뒷단에서 일어나므로 사용자는 URL에서 토큰을 볼 수 없습니다.
+        // 5. 인증 코드를 서버로 보내서 실제 토큰으로 교환 (POST 요청)
         const data = await exchangeAuthCode(code);
 
-        // 6. 교환 결과에 따른 분기 처리
+        // 6. 교환 결과에 따른 OAUTH 분기 처리
         // [CASE 1] 로그인 성공 (이미 가입된 회원)
         if (data.type === "LOGIN" && data.tokenResponse) {
           const { accessToken, refreshToken } = data.tokenResponse;
-
           await signIn(accessToken, refreshToken); // Context 업데이트 및 로그인 처리
           Alert.alert("성공", "소셜 로그인되었습니다.");
         }
@@ -81,9 +84,10 @@ export default function LoginScreen() {
       else {
         console.log("OAuth Login Cancelled");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("OAuth Error:", error);
-      Alert.alert("오류", "소셜 로그인 중 문제가 발생했습니다.");
+      const errorMessage = error.response?.data?.message || "소셜 로그인 중 문제가 발생했습니다.";
+      Alert.alert("오류", errorMessage);
     } finally {
       setIsLoading(false); // 로딩 종료
     }
@@ -97,6 +101,7 @@ export default function LoginScreen() {
     await onLogin(loginId, password);
   };
 
+  // [일반 로그인 핸들러]
   const onLogin = async (id: string, pass: string) => {
     try {
       setIsLoading(true); // 로딩 시작
@@ -104,17 +109,23 @@ export default function LoginScreen() {
       // 1. API 호출
       const response = await login({ loginId: id, password: pass });
       console.log("로그인 성공:", response);
+
       await setMemberId(response.memberId);
-      // 2. 토큰 저장 (AuthContext를 통해 상태 업데이트 및 자동 리다이렉트)
+      // 2. 토큰 저장 및 자동 로그인 처리
       if (response.accessToken) {
         await signIn(response.accessToken, response.refreshToken);
       }
     } catch (error: any) {
       console.error("로그인 실패:", error);
 
+      // [핵심] 백엔드 에러 코드에 따른 분기 처리
+      // client.js에서 401 에러를 던져주면 여기서 잡습니다.
+      const errorCode = error.response?.data?.code;
+
       // 백엔드에서 보내준 에러 메시지가 있다면 표시, 없다면 기본 메시지
-      const errorMessage = error.response?.data?.message || "아이디 또는 비밀번호를 확인해주세요.";
-      Alert.alert("로그인 실패", errorMessage);
+      if (errorCode === "ADMIN_LOGIN_FAILED") {
+        Alert.alert("로그인 실패", "아이디 또는 비밀번호가 일치하지 않습니다.");
+      }
     } finally {
       setIsLoading(false); // 로딩 종료
     }
