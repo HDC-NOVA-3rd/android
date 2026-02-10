@@ -35,4 +35,7 @@ export const API_PATHS = {
     DELETE_SESSION: (sessionId) => `/chat/sessions/${sessionId}`,
     DELETE_ALL_SESSIONS: "/chat/sessions",
   },
+  NOTICE: {
+    LIST: "/notice",
+  },
 };
