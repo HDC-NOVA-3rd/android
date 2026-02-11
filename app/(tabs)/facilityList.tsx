@@ -2,17 +2,23 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { jwtDecode } from "jwt-decode";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View, Dimensions, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
+import { formatTime } from "@/utils/date";
 import { getFacilityList } from "@/api/service/facilityService";
 import { Facility } from "@/app/types/facility";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ImageCarousel } from "@/components/ui/ImageCarousel";
 import { useAuth } from "@/context/AuthContext";
 import { styles } from "@/styles/facility/list.styles";
+import { BASE_URL } from "@/api/client";
+
+// [추가] 카드 내부 이미지 가로 너비 (Card 패딩 등을 고려해서 조정 필요)
+const SCREEN_WIDTH = Dimensions.get("window").width;
+const CARD_WIDTH = SCREEN_WIDTH - 32; // 좌우 패딩 16 * 2 제외 (styles.container 패딩 확인 필요)
 
 export default function FacilityListScreen() {
   const router = useRouter();
@@ -21,6 +27,7 @@ export default function FacilityListScreen() {
   const [selectedCategory, setSelectedCategory] = useState<string>("전체");
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [loading, setLoading] = useState(true);
+  const BACKEND_URL = BASE_URL.replace("/api", ""); // BASE_URL에서 /api 부분 제거
 
   useEffect(() => {
     const fetchFacilities = async () => {
@@ -35,15 +42,33 @@ export default function FacilityListScreen() {
 
         if (apartmentId) {
           const data = await getFacilityList(apartmentId);
-          const mappedFacilities: Facility[] = data.map((item: any) => ({
-            facilityId: item.facilityId.toString(),
-            name: item.name,
-            description: item.description,
-            category: "공용", // API에서 카테고리를 제공하지 않으므로 기본값 설정
-            capacity: 0, // 기본값
-            operatingHours: `${item.startHour} - ${item.endHour}`,
-            imageUrl: "https://via.placeholder.com/300", // 기본 이미지
-          }));
+          const mappedFacilities: Facility[] = data.map((item: any) => {
+            // [핵심 로직] 이미지 URL 매핑
+            // API가 주는 imageUrls 리스트가 있으면 도메인을 붙여서 배열로 만듦
+            // 만약 API가 상대경로(/images/a.jpg)를 준다면 BACKEND_DOMAIN을 붙임
+            let processedImages: string[] = [];
+
+            if (item.imageUrls && item.imageUrls.length > 0) {
+              processedImages = item.imageUrls.map((url: string) =>
+                url.startsWith("http") ? url : `${BACKEND_URL}${url}`,
+              );
+            } else {
+              // 이미지가 없으면 기본 이미지 하나 넣어줌
+              processedImages = [`${BACKEND_URL}/images/studyRoom.jpg`];
+            }
+            return {
+              facilityId: item.facilityId.toString(),
+              name: item.name,
+              description: item.description,
+              category: "공용",
+              capacity:
+                item.minCapacity === item.maxCapacity
+                  ? `${item.minCapacity}`
+                  : `${item.minCapacity} ~ ${item.maxCapacity}`,
+              operatingHours: `${formatTime(item.startHour)} - ${formatTime(item.endHour)}`,
+              imageUrls: processedImages, // [변경] 배열로 저장
+            };
+          });
           setFacilities(mappedFacilities);
         }
       } catch (error) {
@@ -119,9 +144,18 @@ export default function FacilityListScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         {filteredFacilities.map((facility) => (
-          <TouchableOpacity key={facility.facilityId} activeOpacity={0.9} onPress={() => onSelectFacility(facility)}>
-            <Card style={styles.card}>
-              <Image source={{ uri: facility.imageUrl }} style={styles.cardImage} resizeMode="cover" />
+          <Card key={facility.facilityId} style={styles.card}>
+            <ImageCarousel
+              images={facility.imageUrls}
+              onPress={() => onSelectFacility(facility)}
+              width={CARD_WIDTH} // 카드의 너비 전달
+              height={200}
+              imageStyle={{
+                borderTopLeftRadius: 10, // 카드 스타일에 맞게 둥글기 적용
+                borderTopRightRadius: 10,
+              }}
+            />
+            <Pressable onPress={() => onSelectFacility(facility)}>
               <CardHeader style={styles.cardHeader}>
                 <View style={styles.cardHeaderTop}>
                   <CardTitle style={styles.cardTitle}>{facility.name}</CardTitle>
@@ -132,7 +166,7 @@ export default function FacilityListScreen() {
               <CardContent style={styles.cardContent}>
                 <View style={styles.infoRow}>
                   <Feather name="users" size={16} color="#4b5563" />
-                  <Text style={styles.infoText}>최대 {facility.capacity}명</Text>
+                  <Text style={styles.infoText}>{facility.capacity}명</Text>
                 </View>
                 <View style={styles.infoRow}>
                   <Feather name="clock" size={16} color="#4b5563" />
@@ -142,8 +176,8 @@ export default function FacilityListScreen() {
                   <Text style={{ color: "white" }}>예약하기</Text>
                 </Button>
               </CardContent>
-            </Card>
-          </TouchableOpacity>
+            </Pressable>
+          </Card>
         ))}
 
         {filteredFacilities.length === 0 && (

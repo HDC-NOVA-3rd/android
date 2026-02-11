@@ -11,8 +11,9 @@ export interface Facility {
   name: string;
   description: string;
   category: string;
-  capacity: number;
+  capacity: string;
   operatingHours: string;
-  imageUrl: string;
+  imageUrls: string[];
   spaces: Space[];
+  reservation_available?: boolean;
 }
