@@ -1,11 +1,10 @@
-import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-
 import { getMyApartmentWeather } from "@/api/service/apartmentWeatherApi";
 import { getHomeRoomsMy, HomeRoomCard } from "@/api/service/homeEnvironmentApi";
 import { getMyApartmentInfo } from "@/api/service/memberService";
-
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 type WeatherCard = {
   temp: number | null;
   humidity: number | null;
@@ -24,7 +23,7 @@ type MyApartment = {
 
 export default function HomeTab() {
   const router = useRouter();
-
+  const { accessToken, isLoading } = useAuth();
   const [apt, setApt] = useState<MyApartment | null>(null);
   const [rooms, setRooms] = useState<HomeRoomCard[]>([]);
   const [weather, setWeather] = useState<WeatherCard>({
@@ -36,17 +35,23 @@ export default function HomeTab() {
   });
 
   useEffect(() => {
+    // 로그인 전이면 아예 호출 안 함
+    // ✅ AuthProvider가 세션 복구 중이면 기다림 (토큰 아직 세팅 전)
+    if (isLoading) return;
+
+    // ✅ 로그인 전이면 API 호출 자체를 안 함
+    if (!accessToken) return;
     const load = async () => {
       try {
-        // 0) 헤더용(아파트명/동/호) — 이건 기존 그대로 OK
+        // 0) 헤더용(아파트명/동/호)
         const aptData = await getMyApartmentInfo();
         setApt(aptData);
 
-        // 1) 방 카드 데이터 — hoId 필요 없음
+        // 1) 방 카드 데이터
         const cards = await getHomeRoomsMy();
         setRooms(cards);
 
-        // 2) 외부 날씨 (지금은 기존 함수 그대로 호출)
+        // 2) 외부 날씨
         const w = await getMyApartmentWeather();
         setWeather({
           temp: w?.temperature ?? null,
@@ -61,7 +66,7 @@ export default function HomeTab() {
     };
 
     load();
-  }, []);
+  }, [accessToken, isLoading]);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
@@ -170,17 +175,17 @@ export default function HomeTab() {
 const weatherColor = (condition?: string) => {
   switch (condition) {
     case "맑음":
-      return "#F59E0B"; // 주황
+      return "#F59E0B";
     case "구름":
-      return "#60A5FA"; // 파랑
+      return "#60A5FA";
     case "비":
-      return "#64748B"; // 회색
+      return "#64748B";
     case "눈":
-      return "#38BDF8"; // 하늘색
+      return "#38BDF8";
     case "번개":
-      return "#7C3AED"; // 보라
+      return "#7C3AED";
     case "안개":
-      return "#94A3B8"; // 연회색
+      return "#94A3B8";
     default:
       return "#64748B";
   }
