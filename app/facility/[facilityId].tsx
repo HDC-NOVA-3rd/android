@@ -3,19 +3,24 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
+import { formatTime } from "@/utils/date";
 import { getFacilityDetail, getFacilitySpaces } from "@/api/service/facilityService";
 import { Facility, Space } from "@/app/types/facility";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ImageCarousel } from "@/components/ui/ImageCarousel";
 import { styles } from "@/styles/facility/detail.styles";
+import { BASE_URL } from "@/api/client";
+import { Dimensions } from "react-native";
+const SCREEN_WIDTH = Dimensions.get("window").width;
 
 export default function FacilityDetailScreen() {
   const { facilityId } = useLocalSearchParams();
   const router = useRouter();
   const [facility, setFacility] = useState<Facility | null>(null);
   const [loading, setLoading] = useState(true);
+  const BACKEND_URL = BASE_URL.replace("/api", ""); // BASE_URL에서 /api 부분 제거
 
   useEffect(() => {
     const fetchData = async () => {
@@ -35,15 +40,27 @@ export default function FacilityDetailScreen() {
           pricePerHour: space.price,
         }));
 
+        let images: string[] = [];
+        if (detailData.imageUrls && detailData.imageUrls.length > 0) {
+          images = detailData.imageUrls.map((url: string) => (url.startsWith("http") ? url : `${BACKEND_URL}${url}`));
+        } else {
+          // 임시/기본 이미지
+          images = [`${BACKEND_URL}/images/studyRoom.jpg`];
+        }
+
         const mappedFacility: Facility = {
           facilityId: detailData.facilityId.toString(),
-          capacity: 0,
+          capacity:
+            detailData.minCapacity === detailData.maxCapacity
+              ? `${detailData.minCapacity}`
+              : `${detailData.minCapacity} ~ ${detailData.maxCapacity}`,
           name: detailData.name,
           description: detailData.description,
           category: "공용", // API 미제공
-          operatingHours: `${detailData.startHour} - ${detailData.endHour}`,
-          imageUrl: "https://via.placeholder.com/300", // 기본 이미지
+          operatingHours: `${formatTime(detailData.startHour)} - ${formatTime(detailData.endHour)}`,
+          imageUrls: images,
           spaces: spaces,
+          reservation_available: detailData.reservation_available,
         };
         console.log(mappedFacility);
 
@@ -61,6 +78,10 @@ export default function FacilityDetailScreen() {
   const onSelectRoom = (space: Space) => {
     // Reservation logic would go here
     console.log("Selected space:", space);
+    if (facility?.reservation_available === false) {
+      alert("현재 예약이 불가능한 시설입니다.");
+      return;
+    }
     router.push(`/facility/reservation/${space.id}`);
   };
 
@@ -94,7 +115,18 @@ export default function FacilityDetailScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         <Card style={styles.mainCard}>
-          <Image source={{ uri: facility.imageUrl }} style={styles.mainImage} resizeMode="cover" />
+          {/* [변경] 기존 Image 태그 대신 ImageCarousel 사용 */}
+          <ImageCarousel
+            images={facility.imageUrls || []}
+            // 상세화면은 카드 내부 패딩이 없는 경우 꽉 채우거나, 패딩이 있다면 계산 필요
+            // 예: mainCard에 패딩이 없다면 SCREEN_WIDTH - (마진)
+            width={SCREEN_WIDTH - 32} // styles.content padding 등에 맞춰 조절
+            height={250} // 상세화면이니까 좀 더 크게
+            imageStyle={{
+              borderRadius: 12, // 상세화면 스타일
+            }}
+            // 상세화면에서는 이미지를 눌러도 아무 동작 안 함 (onPress 제거)
+          />
           <View style={{ padding: 16 }}>
             <View style={styles.headerRow}>
               <View style={{ flex: 1 }}>
@@ -110,7 +142,7 @@ export default function FacilityDetailScreen() {
               <View style={styles.statItem}>
                 <Feather name="users" size={20} color="#2563eb" />
                 <View style={styles.statTextContainer}>
-                  <Text style={styles.statLabel}>최대 수용 인원</Text>
+                  <Text style={styles.statLabel}>이용 가능 인원</Text>
                   <Text style={styles.statValue}>{facility.capacity}명</Text>
                 </View>
               </View>
