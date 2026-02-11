@@ -51,6 +51,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <Feather size={28} name="user" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="notice"
+        options={{
+          title: "공지사항",
+          tabBarIcon: ({ color }) => <Feather size={28} name="bell" color={color} />,
+        }}
+      />
     </Tabs>
   );
 }

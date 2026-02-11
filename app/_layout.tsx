@@ -39,6 +39,11 @@ export default function RootLayout() {
               options={{ title: "예약 내역", headerShown: false }}
             />
 
+            <Stack.Screen
+              name="notice/[noticeId]"
+              options={{ title: "공지사항 상세", headerShown: false }}
+            />
+
             <Stack.Screen name="auth/findID" options={{ title: "아이디 찾기" }} />
             <Stack.Screen name="auth/resetPW" options={{ title: "비밀번호 재설정" }} />
           </Stack>
