@@ -47,14 +47,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <Feather size={28} name="user" color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="room"
-        options={{
-          href: null, // 탭바에서 제거 (탭 3개 고정)
-          headerShown: true, // room 화면에서 상단 헤더/뒤로가기 필요하면 true
-          title: "거실",
-        }}
-      />
     </Tabs>
   );
 }

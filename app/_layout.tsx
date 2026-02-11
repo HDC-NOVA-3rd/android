@@ -20,7 +20,7 @@ export default function RootLayout() {
           <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="signup" options={{ title: "회원가입" }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="room/[roomId]" options={{ title: "방 상세" }} />
+          <Stack.Screen name="room/[roomId]" options={{ title: "방" }} />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>

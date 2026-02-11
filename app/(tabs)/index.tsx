@@ -1,52 +1,252 @@
 import { useRouter } from "expo-router";
-import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-/**
- * 홈 탭 화면
- * - 방 목록 역할
- * - MVP에서는 "거실" 카드 1개만 제공
- * - 거실을 누르면 /room/1 로 이동 (상세 화면)
- */
+import { getMyApartmentWeather } from "@/api/service/apartmentWeatherApi";
+import { getHomeRoomsMy, HomeRoomCard } from "@/api/service/homeEnvironmentApi";
+import { getMyApartmentInfo } from "@/api/service/memberService";
+
+type WeatherCard = {
+  temp: number | null;
+  humidity: number | null;
+  airText: string;
+  locationText: string;
+  conditionText: string; // 맑음/비/눈...
+};
+
+type MyApartment = {
+  apartmentName?: string;
+  dongNo?: string | number;
+  hoNo?: string | number;
+  hoId?: number;
+  apartmentId?: number;
+};
+
 export default function HomeTab() {
   const router = useRouter();
 
-  return (
-    <View style={styles.container}>
-      {/* 화면 제목 */}
-      <Text style={styles.title}>내 집</Text>
+  const [apt, setApt] = useState<MyApartment | null>(null);
+  const [rooms, setRooms] = useState<HomeRoomCard[]>([]);
+  const [weather, setWeather] = useState<WeatherCard>({
+    temp: null,
+    humidity: null,
+    airText: "--",
+    locationText: "",
+    conditionText: "--",
+  });
 
-      {/* 방 카드 (거실) */}
-      <Pressable style={styles.card} onPress={() => router.push("/(tabs)/room")}>
-        <Text style={styles.roomName}>거실</Text>
-        <Text style={styles.roomDesc}>LED / 에어컨 제어</Text>
+  useEffect(() => {
+    const load = async () => {
+      try {
+        // 0) 헤더용(아파트명/동/호) — 이건 기존 그대로 OK
+        const aptData = await getMyApartmentInfo();
+        setApt(aptData);
+
+        // 1) 방 카드 데이터 — hoId 필요 없음
+        const cards = await getHomeRoomsMy();
+        setRooms(cards);
+
+        // 2) 외부 날씨 (지금은 기존 함수 그대로 호출)
+        const w = await getMyApartmentWeather();
+        setWeather({
+          temp: w?.temperature ?? null,
+          humidity: w?.humidity ?? null,
+          airText: w?.airQuality ?? "좋음",
+          locationText: w?.locationName ?? "",
+          conditionText: w?.condition ?? "--",
+        });
+      } catch (e) {
+        console.log("홈 로딩 실패:", e);
+      }
+    };
+
+    load();
+  }, []);
+
+  return (
+    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
+      {/* 상단 헤더 */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.headerTitle}>{apt?.apartmentName ?? "내 집"}</Text>
+          <Text style={styles.headerSub}>
+            {apt?.dongNo ?? "--"} {apt?.hoNo ?? "--"}
+          </Text>
+        </View>
+
+        <Pressable style={styles.settingBtn} onPress={() => console.log("설정")}>
+          <Text style={{ fontSize: 30 }}>⚙️</Text>
+        </Pressable>
+      </View>
+
+      {/* 외부 날씨 카드 */}
+      <View style={styles.weatherBox}>
+        <View style={styles.weatherTopRow}>
+          <Text style={styles.sectionTitle}>현재 날씨</Text>
+          <Text style={styles.weatherLocation}>{weather.locationText}</Text>
+        </View>
+
+        <View style={styles.weatherCardsRow}>
+          <View style={[styles.weatherCard, styles.weatherCardHot]}>
+            <Text style={styles.weatherMainValue}>
+              {weather.temp === null ? "--" : `${Math.round(weather.temp)}°`}
+            </Text>
+            <Text style={styles.weatherLabel}>온도</Text>
+          </View>
+
+          <View style={[styles.weatherCard, styles.weatherCardBlue]}>
+            <Text style={styles.weatherMainValue}>
+              {weather.humidity === null ? "--" : `${Math.round(weather.humidity)}%`}
+            </Text>
+            <Text style={styles.weatherLabel}>습도</Text>
+          </View>
+
+          <View style={[styles.weatherCard, styles.weatherCardGreen]}>
+            <Text style={styles.weatherMainValue}>{weather.airText}</Text>
+            <Text style={styles.weatherLabel}>공기질</Text>
+          </View>
+
+          <View
+            style={[styles.weatherCard, { backgroundColor: weatherColor(weather.conditionText) }]}
+          >
+            <Text style={styles.weatherMainValue}>{weather.conditionText}</Text>
+            <Text style={styles.weatherLabel}>날씨</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* 방 섹션 */}
+      <Text style={[styles.sectionTitle, { marginTop: 18 }]}>방</Text>
+
+      {rooms.map((card) => (
+        <Pressable
+          key={card.roomId}
+          style={styles.roomCard}
+          onPress={() => router.push(`/room/${card.roomId}`)}
+        >
+          <View style={styles.roomCardTop}>
+            <Text style={styles.roomName}>{card.roomName}</Text>
+            <Text style={styles.chevron}>›</Text>
+          </View>
+
+          <View style={styles.roomEnvRow}>
+            <Text style={styles.roomEnvText}>🌡 {card.temperature ?? "--"}°C</Text>
+            <Text style={styles.roomEnvText}>💧 {card.humidity ?? "--"}%</Text>
+          </View>
+
+          <Text style={styles.roomDesc}>{card.deviceSummary}</Text>
+        </Pressable>
+      ))}
+
+      {/* 모드 섹션 (UI만) */}
+      <Text style={[styles.sectionTitle, { marginTop: 18 }]}>모드</Text>
+
+      <View style={styles.modeCard}>
+        <Text style={styles.modeTitle}>외출 모드</Text>
+        <Text style={styles.modeSub}>설정 안 됨</Text>
+        <Text style={styles.chevron}>›</Text>
+      </View>
+
+      <View style={styles.modeCard}>
+        <Text style={styles.modeTitle}>취침 모드</Text>
+        <Text style={styles.modeSub}>매일 23:00</Text>
+        <Text style={styles.chevron}>›</Text>
+      </View>
+
+      <View style={styles.modeCard}>
+        <Text style={styles.modeTitle}>귀가 모드</Text>
+        <Text style={styles.modeSub}>평일 18:00</Text>
+        <Text style={styles.chevron}>›</Text>
+      </View>
+
+      <Pressable style={styles.addModeBox} onPress={() => console.log("커스텀 모드 추가")}>
+        <Text style={styles.addModePlus}>＋</Text>
+        <Text style={styles.addModeText}>커스텀 모드 추가</Text>
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
+const weatherColor = (condition?: string) => {
+  switch (condition) {
+    case "맑음":
+      return "#F59E0B"; // 주황
+    case "구름":
+      return "#60A5FA"; // 파랑
+    case "비":
+      return "#64748B"; // 회색
+    case "눈":
+      return "#38BDF8"; // 하늘색
+    case "번개":
+      return "#7C3AED"; // 보라
+    case "안개":
+      return "#94A3B8"; // 연회색
+    default:
+      return "#64748B";
+  }
+};
 const styles = StyleSheet.create({
-  container: {
+  screen: { flex: 1, backgroundColor: "#F6F7FB" },
+  container: { flex: 1, padding: 12, paddingBottom: 24, marginTop: 40, backgroundColor: "#F6F7FB" },
+
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  headerTitle: { fontSize: 20, fontWeight: "800" },
+  headerSub: { marginTop: 2, color: "#333", fontWeight: "700" },
+  settingBtn: { padding: 8 },
+
+  sectionTitle: { fontSize: 16, fontWeight: "800" },
+
+  weatherBox: { marginTop: 8, backgroundColor: "white", borderRadius: 16, padding: 12 },
+  weatherTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  weatherLocation: { color: "#666", fontWeight: "600" },
+
+  weatherCardsRow: { flexDirection: "row", gap: 10, marginTop: 12 },
+  weatherCard: {
     flex: 1,
-    padding: 16,
-    backgroundColor: "#F6F7FB",
+    borderRadius: 14,
+    padding: 12,
+    minHeight: 72,
+    justifyContent: "space-between",
   },
-  title: {
-    fontSize: 22,
-    fontWeight: "700",
-    marginBottom: 12,
-  },
-  card: {
+  weatherCardHot: { backgroundColor: "#FF8A00" },
+  weatherCardBlue: { backgroundColor: "#3B82F6" },
+  weatherCardGreen: { backgroundColor: "#22C55E" },
+  weatherCardGray: { backgroundColor: "#64748B" },
+  weatherMainValue: { color: "white", fontSize: 20, fontWeight: "900" },
+  weatherLabel: { color: "white", fontWeight: "700" },
+  roomCard: { marginTop: 8, backgroundColor: "white", borderRadius: 16, padding: 14 },
+  roomCardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  roomName: { fontSize: 17, fontWeight: "900" },
+  chevron: { fontSize: 22, color: "#999" },
+  roomEnvRow: { flexDirection: "row", gap: 12, marginTop: 6 },
+  roomEnvText: { fontWeight: "800" },
+  roomDesc: { marginTop: 4, color: "#666", fontWeight: "700" },
+
+  modeCard: {
+    marginTop: 8,
     backgroundColor: "white",
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 18,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
-  roomName: {
-    fontSize: 18,
-    fontWeight: "700",
+  modeTitle: { flex: 1, fontWeight: "900" },
+  modeSub: { color: "#666", fontWeight: "700" },
+
+  addModeBox: {
+    marginTop: 10,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "#CBD5E1",
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    justifyContent: "center",
+    backgroundColor: "white",
   },
-  roomDesc: {
-    marginTop: 6,
-    color: "#666",
-  },
+  addModePlus: { fontSize: 18, fontWeight: "900", color: "#666" },
+  addModeText: { fontWeight: "900", color: "#666" },
 });

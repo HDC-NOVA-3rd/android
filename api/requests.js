@@ -20,4 +20,13 @@ export const API_PATHS = {
     SESSIONS: "/chat/sessions",
     SESSION_MESSAGES: (sessionId) => `/chat/sessions/${sessionId}/messages`,
   },
+  HOME_ENV: {
+    ROOMS_BY_HO: (hoId) => `/room/ho/${hoId}`,
+    ROOMS_MY: "/room/my",
+    ROOM_SNAPSHOT: (roomId) => `/room/${roomId}/snapshot`,
+    DEVICE_STATE: (roomId) => `/room/${roomId}/devices/state`,
+  },
+  APARTMENT: {
+    WEATHER: (apartmentId) => `/apartment/${apartmentId}/weather`,
+  },
 };
