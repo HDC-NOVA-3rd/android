@@ -3,7 +3,7 @@ import { refresh } from "@/api/service/authService";
 import { getRefreshToken, removeRefreshToken, setRefreshToken } from "@/api/tokenStorage";
 import { useRouter, useSegments } from "expo-router";
 import React, { createContext, useContext, useEffect, useState } from "react";
-
+// AccessToken 에 따라 로그인, 로그아웃 처리
 type AuthContextType = {
   accessToken: string | null;
   isLoading: boolean;
@@ -35,18 +35,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (storedRefreshToken) {
           // 백엔드에 Refresh Token을 보내고 새 Access Token을 요청하는 API 호출
-          // 예: POST /auth/refresh { refreshToken: ... }
-          // 여기서는 가상의 함수 fetchNewAccessToken을 사용한다고 가정합니다.
+          // POST /api/member/refresh -> TokenResponse 반환
           const response = await refresh(storedRefreshToken);
-          const newAccessToken = response.accessToken;
 
+          await setRefreshToken(response.refreshToken);
+          const newAccessToken = response.accessToken;
           setAccessToken(newAccessToken);
-          // API 헤더에 기본 토큰 설정 (선택 사항)
+          // API 헤더에 기본 토큰 설정
           client.defaults.headers.common["Authorization"] = `Bearer ${newAccessToken}`;
         }
       } catch (error) {
         console.error("세션 복구 실패 (토큰 만료 등):", error);
-        // 복구 실패 시 스토리지 비우기 (로그아웃 처리)
+        // 복구 실패 시 SecureStore 저장된 refreshToken 비우기 (로그아웃 처리)
         await removeRefreshToken();
       } finally {
         setIsLoading(false);
@@ -56,7 +56,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     restoreSession();
   }, []);
 
-  // 2. 리다이렉트 로직 (이전과 동일하지만 accessToken 감지해 경로 변경)
+  // 2. 리다이렉트 로직 (이전과 동일하지만 accessToken 변경되는 경우 실행)
   useEffect(() => {
     if (isLoading) return;
 
@@ -77,7 +77,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // - 로그인 X + 로그인 페이지 -> 통과 (OK)
   }, [accessToken, segments, isLoading]);
 
-  // 3. 로그인 함수
+  // 3. 로그인 처리
   const signIn = async (newAccessToken: string, newRefreshToken: string) => {
     try {
       await setRefreshToken(newRefreshToken); // SecureStore에 저장 (Refresh Token)
@@ -88,7 +88,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // 4. 로그아웃 함수
+  // 4. 로그아웃 처리
   const signOut = async () => {
     await removeRefreshToken(); // SecureStore 삭제
     setAccessToken(null); // State 초기화
@@ -96,5 +96,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     router.replace("/login"); // 강제 이동
   };
 
-  return <AuthContext.Provider value={{ accessToken, isLoading, signIn, signOut }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ accessToken, isLoading, signIn, signOut }}>
+      {isLoading ? null : children}
+    </AuthContext.Provider>
+  );
 };

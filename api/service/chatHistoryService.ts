@@ -22,7 +22,23 @@ export async function getChatSessions(memberId: number) {
   return data;
 }
 // 특정 채팅 세션의 메시지들 가져오기
-export async function getChatMessages(sessionId: string) {
-  const { data } = await client.get<ChatMessageDto[]>(API_PATHS.CHAT.SESSION_MESSAGES(sessionId));
+export async function getChatMessages(memberId: number, sessionId: string) {
+  const { data } = await client.get(API_PATHS.CHAT.SESSION_MESSAGES(sessionId), {
+    params: { memberId },
+  });
   return data;
+}
+
+//  단일 세션 삭제
+export async function deleteChatSession(memberId: number, sessionId: string) {
+  await client.delete(API_PATHS.CHAT.DELETE_SESSION(sessionId), {
+    params: { memberId },
+  });
+}
+
+//  전체 세션 삭제
+export async function deleteAllChatSessions(memberId: number) {
+  await client.delete(API_PATHS.CHAT.DELETE_ALL_SESSIONS, {
+    params: { memberId },
+  });
 }

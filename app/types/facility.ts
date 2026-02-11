@@ -1,18 +1,19 @@
-export interface Room {
+export interface Space {
   id: string;
   name: string;
-  capacity: number;
+  maxCapacity: number;
+  minCapacity: number;
   pricePerHour: number;
 }
 
 export interface Facility {
-  id: string;
+  facilityId: string;
   name: string;
   description: string;
   category: string;
-  capacity: number;
+  capacity: string;
   operatingHours: string;
-  pricePerHour: number;
-  imageUrl: string;
-  rooms: Room[];
+  imageUrls: string[];
+  spaces: Space[];
+  reservation_available?: boolean;
 }

@@ -1,19 +1,39 @@
+import {
+  archiveId,
+  getArchivedIds,
+  getDebugEnabled,
+  getPinnedIds,
+  setDebugEnabled,
+  togglePinnedId,
+  unarchiveId,
+} from "@/api/service/chatUiStorage";
 import ChatRoom, { type ChatItem } from "@/components/chat/ChatRoom";
 import ChatSidebar from "@/components/chat/ChatSidebar";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
-import { Text, View, useWindowDimensions } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Animated,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
 import type { ChatIntent } from "../../.expo/types/chat";
 import { getMemberId } from "../../api/memberStorage";
 import {
+  deleteAllChatSessions,
+  deleteChatSession,
   getChatMessages,
   getChatSessions,
-  type ChatMessageDto,
   type ChatSessionDto,
 } from "../../api/service/chatHistoryService";
 import { sendChat } from "../../api/service/chatService";
-// import type { ChatIntent } from "@/types/chat";
+
 const CHAT_INTENTS: readonly ChatIntent[] = [
   "ENV_STATUS",
   "ENV_HISTORY",
@@ -27,31 +47,60 @@ const CHAT_INTENTS: readonly ChatIntent[] = [
   "SMALL_TALK",
   "UNKNOWN",
 ] as const;
-// import { CHAT_INTENTS } from "@/constants/chat";
+
 const isChatIntent = (v: any): v is ChatIntent => CHAT_INTENTS.includes(v);
-// export const CHAT_INTENTS = [
+
 type ChatRole = "USER" | "ASSISTANT";
-//   "ENV_STATUS",
 const makeId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-//   "ENV_HISTORY",
+
 const WELCOME: ChatItem = {
   id: makeId(),
   role: "ASSISTANT",
   content: "안녕하세요! 무엇을 도와드릴까요 🙂",
   createdAt: Date.now(),
 };
-//   "ROOM_LIST",
+
 export default function ChatScreen() {
-  // Responsive layout
   const { width } = useWindowDimensions();
-  const isWide = width >= 900; // 웹이면 좌측 사이드바 고정
-  const [isSessionListOpen, setIsSessionListOpen] = useState(false);
+
+  // 웹에서만 wide 레이아웃 적용
+  const isWide = Platform.OS === "web" && width >= 900;
+  const isMobile = !isWide;
+
   const [memberId, setMemberId] = useState<number | null>(null);
   const [sessionId, setSessionId] = useState<string>("");
   const [sessions, setSessions] = useState<ChatSessionDto[]>([]);
   const [text, setText] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [messages, setMessages] = useState<ChatItem[]>([WELCOME]);
+
+  // ✅ UI 확장 상태
+  const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
+  const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
+  const [debugEnabled, setDebugEnabledState] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
+
+  // 모바일 Drawer 상태/애니메이션 (왼쪽 슬라이드)
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const anim = useRef(new Animated.Value(0)).current;
+
+  const panelWidth = Math.min(360, width * 0.92);
+  const translateX = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-panelWidth, 0],
+  });
+
+  const openDrawer = () => {
+    setDrawerOpen(true);
+    Animated.timing(anim, { toValue: 1, duration: 220, useNativeDriver: true }).start();
+  };
+
+  const closeDrawer = () => {
+    Animated.timing(anim, { toValue: 0, duration: 180, useNativeDriver: true }).start(() => {
+      setDrawerOpen(false);
+    });
+  };
+
   // 메시지 추가 헬퍼
   const appendMessage = (
     role: ChatRole,
@@ -63,37 +112,162 @@ export default function ChatScreen() {
       { id: makeId(), role, content, createdAt: Date.now(), ...extra },
     ]);
   };
+
   // 세션 목록 새로고침
   const refreshSessions = async (mid: number) => {
     const list = await getChatSessions(mid);
     setSessions(list);
+    return list;
   };
-  // 특정 세션 로드
-  const loadSession = async (targetSessionId: string) => {
+
+  // 특정 세션 로드 (memberId 타이밍 이슈 방지: mid를 인자로 받게)
+  const loadSession = async (mid: number, targetSessionId: string) => {
     setSessionId(targetSessionId);
-    // 모바일이면 목록 닫기
-    const serverMsgs: ChatMessageDto[] = await getChatMessages(targetSessionId);
-    // 서버 메시지를 UI 메시지로 변환
+    // 메시지 로드
+    const serverMsgs = await getChatMessages(mid, targetSessionId);
+    // 변환
     const uiMsgs: ChatItem[] = serverMsgs.map((m) => ({
-      id: String(m.id ?? makeId()),
+      id: String((m as any).id ?? makeId()),
       role: m.role === "ASSISTANT" ? "ASSISTANT" : "USER",
       content: m.content,
       createdAt: new Date(m.createdAt).getTime(),
     }));
-    // 메시지 설정
+
     setMessages(uiMsgs.length ? uiMsgs : [{ ...WELCOME, id: makeId(), createdAt: Date.now() }]);
   };
+
+  // Sidebar Peek(롱프레스 미리보기)용: 최근 n개 메시지 가져오기
+  const handlePeekMessages = async (sid: string) => {
+    if (!memberId) return [];
+    const serverMsgs = await getChatMessages(memberId, sid);
+    // 최근 n개
+    return serverMsgs.map((m) => ({
+      role: m.role === "ASSISTANT" ? "ASSISTANT" : "USER",
+      content: m.content,
+      createdAt: m.createdAt,
+    }));
+  };
+
   // 새 채팅 시작
   const onNewChat = () => {
     setSessionId("");
     setMessages([{ ...WELCOME, id: makeId(), createdAt: Date.now() }]);
   };
-  // 초기 로드
+
+  // 세션 삭제
+  const handleDeleteSession = async (targetSessionId: string) => {
+    if (!memberId) return;
+
+    await deleteChatSession(memberId, targetSessionId);
+
+    const list = await refreshSessions(memberId);
+
+    // 고정/아카이브에 남아있어도 UI상 문제 없지만, 원하면 여기서 set에서도 제거 가능
+    if (sessionId === targetSessionId) {
+      const visible = list.filter((s) => !archivedIds.has(s.sessionId));
+      if (visible.length > 0) await loadSession(memberId, visible[0].sessionId);
+      else onNewChat();
+    }
+  };
+
+  // 전체 삭제
+  const handleDeleteAll = async () => {
+    if (!memberId) return;
+    await deleteAllChatSessions(memberId);
+    setSessions([]);
+    onNewChat();
+  };
+
+  //  세션 리스트: "전체를 Sidebar로 전달" + 핀 우선 + (아카이브는 뒤로)
+  const sessionsForSidebar = useMemo(() => {
+    const pinned: ChatSessionDto[] = [];
+    const normal: ChatSessionDto[] = [];
+    const archived: ChatSessionDto[] = [];
+
+    for (const s of sessions) {
+      const sid = s.sessionId;
+      const isA = archivedIds.has(sid);
+      const isP = pinnedIds.has(sid);
+
+      if (isA) archived.push(s);
+      else if (isP) pinned.push(s);
+      else normal.push(s);
+    }
+
+    // pinned / normal / archived 순
+    return [...pinned, ...normal, ...archived];
+  }, [sessions, archivedIds, pinnedIds]);
+
+  //  핀 토글
+  const handleTogglePin = async (sid: string) => {
+    const next = await togglePinnedId(sid);
+    setPinnedIds(new Set(next));
+  };
+
+  //  아카이브/복원
+  const handleArchiveSession = async (sid: string) => {
+    const next = await archiveId(sid);
+    setArchivedIds(new Set(next));
+
+    // 현재 보고 있던 세션을 숨겼으면 새 채팅으로
+    if (sessionId === sid) onNewChat();
+  };
+
+  const handleUnarchiveSession = async (sid: string) => {
+    const next = await unarchiveId(sid);
+    setArchivedIds(new Set(next));
+  };
+
+  //  오래된 세션 정리(아카이브로 안전하게)
+  const handleCleanupOldSessions = async (days: number) => {
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+
+    const targets = sessions
+      .filter((s) => {
+        if (!s.lastMessageAt) return false;
+        const t = new Date(s.lastMessageAt).getTime();
+        if (Number.isNaN(t)) return false;
+        return t < cutoff;
+      })
+      .map((s) => s.sessionId);
+
+    if (targets.length === 0) return;
+
+    // 저장은 1개씩 (targets가 많으면 writeSet 버전 만드는 게 더 좋음)
+    for (const sid of targets) await archiveId(sid);
+
+    setArchivedIds((prev) => {
+      const next = new Set(prev);
+      for (const sid of targets) next.add(sid);
+      return next;
+    });
+
+    if (targets.includes(sessionId)) onNewChat();
+  };
+
+  //  디버그 토글
+  const handleToggleDebug = async () => {
+    const next = !debugEnabled;
+    setDebugEnabledState(next);
+    await setDebugEnabled(next);
+  };
+
+  // ✅ 초기 로드: UI 스토리지 + memberId/세션 로드 (한 번에)
   useEffect(() => {
     (async () => {
-      const id = await getMemberId();
+      const [p, a, d, id] = await Promise.all([
+        getPinnedIds(),
+        getArchivedIds(),
+        getDebugEnabled(),
+        getMemberId(),
+      ]);
+
+      setPinnedIds(p);
+      setArchivedIds(a);
+      setDebugEnabledState(d);
+
       setMemberId(id);
-      // ️ 로그인 안 됨 처리
+
       if (!id) {
         setMessages((prev) => [
           ...prev,
@@ -106,46 +280,43 @@ export default function ChatScreen() {
         ]);
         return;
       }
-      //  세션 목록 로드
-      await refreshSessions(id);
 
-      //  세션이 있으면 자동으로 첫 세션 로드(원하면 유지)
-      // (refreshSessions가 끝난 뒤 sessions state가 바로 안 바뀌므로, 직접 다시 받아서 쓰는게 안전)
-      const list = await getChatSessions(id);
-      setSessions(list);
-      if (list.length > 0) await loadSession(list[0].sessionId);
+      const list = await refreshSessions(id);
+
+      // 첫 세션 자동 로드(아카이브 제외)
+      const firstVisible = list.find((s) => !a.has(s.sessionId));
+      if (firstVisible) await loadSession(id, firstVisible.sessionId);
     })();
   }, []);
+
   // 메시지 전송 핸들러
   const handleSend = async (messageText?: string) => {
     const content = (messageText ?? text).trim();
     if (!content) return;
-    // ️ 로그인 체크
+
     if (!memberId) {
       appendMessage("ASSISTANT", "로그인이 필요해요. 로그인 후 다시 시도해주세요.");
       return;
     }
-    // 사용자 메시지 추가
+
     appendMessage("USER", content);
     setText("");
-    // 서버에 메시지 전송
+
     try {
       setIsSending(true);
-      // ️ 기존 세션 ID 있으면 같이 보냄
+
       const payload: any = { message: content, memberId };
       if (sessionId) payload.sessionId = sessionId;
-      // ️ 메시지 전송
+
       const res = await sendChat(payload);
-      // ️ 새로 생성된 세션 ID 있으면 설정
+
       if (res?.sessionId) setSessionId(res.sessionId);
-      // ️ 어시스턴트 메시지 추가
+
       const answer = res?.answer ?? "(응답이 비어있어요)";
       const intent: ChatIntent = isChatIntent(res?.intent) ? res.intent : "UNKNOWN";
       appendMessage("ASSISTANT", answer, { intent, data: res?.data });
 
-      // 응답 후 세션 목록 갱신
-      const list = await getChatSessions(memberId);
-      setSessions(list);
+      await refreshSessions(memberId);
     } catch (e: any) {
       const status = e?.response?.status;
       const data = e?.response?.data;
@@ -157,108 +328,81 @@ export default function ChatScreen() {
       setIsSending(false);
     }
   };
-  // 빠른 응답 예시
+
+  // ✅ Drawer에서 추천 질문 클릭 → Drawer 닫고 바로 전송
+  const handleQuickSendFromSidebar = async (q: string) => {
+    if (isMobile) closeDrawer();
+    await handleSend(q);
+  };
+
+  // 빠른 응답 예시(채팅 입력창 위)
   const quickReplies = [
     "내 입주민 정보 보여줘",
     "헬스장 운영시간이 언제야?",
     "지금 거실 온도 알려줘",
     "내 동/호 정보 뭐야?",
   ];
-  // 렌더링
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
       <View style={{ flex: 1, flexDirection: "row" }}>
-        {/*  웹: 좌측 사이드바 고정 */}
+        {/* 웹: 좌측 사이드바 고정 */}
         {isWide && (
           <View style={{ width: 320, borderRightWidth: 1, borderRightColor: "#eee" }}>
             <ChatSidebar
-              sessions={sessions}
+              sessions={sessionsForSidebar}
               activeSessionId={sessionId || null}
-              onSelectSession={loadSession}
+              onSelectSession={(sid) => memberId && loadSession(memberId, sid)}
               onNewChat={onNewChat}
+              onDeleteSession={handleDeleteSession}
+              onDeleteAll={handleDeleteAll}
+              onQuickSend={handleQuickSendFromSidebar}
+              // ✅ Peek props
+              onPeekMessages={handlePeekMessages}
+              peekLimit={5}
+              // ✅ 확장 props
+              pinnedIds={pinnedIds}
+              archivedIds={archivedIds}
+              debugEnabled={debugEnabled}
+              onTogglePin={handleTogglePin}
+              onArchiveSession={handleArchiveSession}
+              onUnarchiveSession={handleUnarchiveSession}
+              onCleanupOldSessions={handleCleanupOldSessions}
+              onToggleDebug={handleToggleDebug}
+              onOpenPrivacy={() => setPrivacyOpen(true)}
             />
           </View>
         )}
 
-        {/*  모바일: 사이드바 대신 상단 토글 + 목록 패널 */}
-        {!isWide && (
-          <>
-            {/* 상단 버튼 영역 */}
+        {/* 메인 */}
+        <View style={{ flex: 1 }}>
+          {/* 모바일 헤더 */}
+          {isMobile && (
             <View
               style={{
-                position: "absolute",
-                top: 12,
-                left: 12,
-                right: 12,
-                zIndex: 20,
+                height: 48,
+                borderBottomWidth: 1,
+                borderBottomColor: "#eee",
                 flexDirection: "row",
-                gap: 8,
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingHorizontal: 12,
               }}
             >
-              <Button
-                variant="outline"
-                onPress={() => setIsSessionListOpen((v) => !v)}
-                disabled={!memberId}
-              >
-                <Text>대화목록</Text>
+              <Button variant="outline" onPress={openDrawer} disabled={!memberId}>
+                <Text>☰</Text>
               </Button>
+
+              <Text style={{ fontWeight: "700" }}>Chatbot</Text>
 
               <Button variant="outline" onPress={onNewChat}>
                 <Text>새 채팅</Text>
               </Button>
             </View>
+          )}
 
-            {/* 목록 패널 */}
-            {isSessionListOpen && (
-              <View
-                style={{
-                  position: "absolute",
-                  top: 60, // 버튼 아래로
-                  left: 12,
-                  right: 12,
-                  maxHeight: 320,
-                  backgroundColor: "white",
-                  borderWidth: 1,
-                  borderColor: "#eee",
-                  borderRadius: 12,
-                  padding: 8,
-                  zIndex: 30,
-                }}
-              >
-                {sessions.length === 0 ? (
-                  <Text style={{ color: "#666" }}>세션이 없어요.</Text>
-                ) : (
-                  sessions.map((s) => (
-                    <View
-                      key={s.sessionId}
-                      style={{
-                        paddingVertical: 10,
-                        borderBottomWidth: 1,
-                        borderBottomColor: "#f2f2f2",
-                      }}
-                    >
-                      <Text
-                        onPress={() => loadSession(s.sessionId)}
-                        style={{ fontWeight: "700" }}
-                        numberOfLines={1}
-                      >
-                        {s.lastMessage || s.sessionId.slice(0, 12) + "..."}
-                      </Text>
-                      <Text style={{ color: "#666", marginTop: 2, fontSize: 12 }} numberOfLines={1}>
-                        {s.lastMessageAt}
-                      </Text>
-                    </View>
-                  ))
-                )}
-              </View>
-            )}
-          </>
-        )}
-
-        {/* 우측 채팅(모바일도 여기 렌더링) */}
-        <View style={{ flex: 1 }}>
           <ChatRoom
-            title="Chatbot"
+            title={isWide ? "Chatbot" : undefined}
             messages={messages}
             text={text}
             setText={setText}
@@ -266,6 +410,108 @@ export default function ChatScreen() {
             onSend={handleSend}
             quickReplies={quickReplies}
           />
+
+          {/* ✅ 개인정보/보안 안내 모달 */}
+          <Modal transparent visible={privacyOpen} onRequestClose={() => setPrivacyOpen(false)}>
+            <Pressable
+              style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.35)" }}
+              onPress={() => setPrivacyOpen(false)}
+            />
+            <View
+              style={{
+                position: "absolute",
+                left: 16,
+                right: 16,
+                top: 120,
+                backgroundColor: "white",
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: "#eee",
+                padding: 14,
+              }}
+            >
+              <Text style={{ fontWeight: "900", fontSize: 16, marginBottom: 8 }}>
+                개인정보/보안 안내
+              </Text>
+              <ScrollView style={{ maxHeight: 260 }}>
+                <Text style={{ color: "#333", lineHeight: 20 }}>
+                  • 대화/세션 기록은 서비스 품질 개선과 이용 편의를 위해 저장될 수 있어요.{"\n"}•
+                  ‘전체 삭제’ 또는 세션 삭제로 기록을 삭제할 수 있어요.{"\n"}• 계정( memberId )
+                  기준으로 데이터가 관리돼요.{"\n"}• 민감한 개인정보(주민번호/계좌/비밀번호 등)는
+                  입력하지 않는 것을 권장해요.{"\n"}• 디버그 로그는 개발/테스트 목적이며 필요 시 끌
+                  수 있어요.
+                </Text>
+              </ScrollView>
+
+              <View style={{ marginTop: 12 }}>
+                <Button variant="outline" onPress={() => setPrivacyOpen(false)}>
+                  <Text>닫기</Text>
+                </Button>
+              </View>
+            </View>
+          </Modal>
+
+          {/* 모바일 Drawer */}
+          {isMobile && drawerOpen && (
+            <Modal transparent visible onRequestClose={closeDrawer}>
+              <Pressable
+                style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.35)" }}
+                onPress={closeDrawer}
+              />
+
+              <Animated.View
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  bottom: 0,
+                  left: 0,
+                  width: panelWidth,
+                  backgroundColor: "white",
+                  transform: [{ translateX }],
+                  borderRightWidth: 1,
+                  borderRightColor: "#eee",
+                }}
+              >
+                <ChatSidebar
+                  sessions={sessionsForSidebar}
+                  activeSessionId={sessionId || null}
+                  onSelectSession={async (sid) => {
+                    if (!memberId) return;
+                    await loadSession(memberId, sid);
+                    closeDrawer();
+                  }}
+                  onNewChat={() => {
+                    onNewChat();
+                    closeDrawer();
+                  }}
+                  onDeleteSession={handleDeleteSession}
+                  onDeleteAll={async () => {
+                    await handleDeleteAll();
+                    closeDrawer();
+                  }}
+                  onQuickSend={handleQuickSendFromSidebar}
+                  //  Peek props
+                  onPeekMessages={handlePeekMessages}
+                  peekLimit={5}
+                  //  확장 props
+                  pinnedIds={pinnedIds}
+                  archivedIds={archivedIds}
+                  debugEnabled={debugEnabled}
+                  onTogglePin={handleTogglePin}
+                  onArchiveSession={handleArchiveSession}
+                  onUnarchiveSession={handleUnarchiveSession}
+                  onCleanupOldSessions={async (days) => {
+                    await handleCleanupOldSessions(days);
+                    closeDrawer();
+                  }}
+                  onToggleDebug={async () => {
+                    await handleToggleDebug();
+                  }}
+                  onOpenPrivacy={() => setPrivacyOpen(true)}
+                />
+              </Animated.View>
+            </Modal>
+          )}
         </View>
       </View>
     </SafeAreaView>

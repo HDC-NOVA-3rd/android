@@ -136,16 +136,30 @@ export default function SignupScreen() {
                     {isVerified ? (
                       <Input value={formData.dongNo} editable={false} style={styles.disabledInput} />
                     ) : (
-                      <Select value={formData.dongNo} onValueChange={onDongChange}>
+                      <Select
+                        value={formData.dongNo}
+                        onValueChange={(val) => {
+                          // [핵심] 안내 문구('guide')가 선택되면 아무 동작도 안 하고 무시
+                          if (val === "guide_apartment") return;
+                          onDongChange(val);
+                        }}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="동 선택" />
                         </SelectTrigger>
                         <SelectContent>
-                          {dongList.map((dong) => (
-                            <SelectItem key={dong.id} value={dong.dongNo}>
-                              {dong.dongNo}
-                            </SelectItem>
-                          ))}
+                          {/* 아파트를 아직 선택 안 했을 경우 */}
+                          {!formData.apartmentName ? (
+                            // value를 특이한 값으로 줘서 onValueChange에서 걸러냅니다.
+                            <SelectItem value="guide_apartment">아파트를 먼저 선택해주세요</SelectItem>
+                          ) : (
+                            // 아파트를 선택했고, 동 리스트가 있을 때
+                            dongList.map((dong) => (
+                              <SelectItem key={dong.id} value={dong.dongNo}>
+                                {dong.dongNo}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     )}
@@ -156,16 +170,29 @@ export default function SignupScreen() {
                       <Input value={formData.hoNo} editable={false} style={styles.disabledInput} />
                     ) : (
                       // onHoChange 연결
-                      <Select value={formData.hoNo} onValueChange={onHoChange}>
+                      <Select
+                        value={formData.hoNo}
+                        onValueChange={(val) => {
+                          // [핵심] 안내 문구('guide')가 선택되면 무시
+                          if (val === "guide_dong") return;
+                          onHoChange(val);
+                        }}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="호 선택" />
                         </SelectTrigger>
                         <SelectContent>
-                          {hoList.map((ho) => (
-                            <SelectItem key={ho.id} value={ho.hoNo}>
-                              {ho.hoNo}
-                            </SelectItem>
-                          ))}
+                          {/* 동을 아직 선택 안 했을 경우 */}
+                          {!formData.dongNo ? (
+                            <SelectItem value="guide_dong">동을 먼저 선택해주세요</SelectItem>
+                          ) : (
+                            // 동을 선택했고, 호 리스트가 있을 때
+                            hoList.map((ho) => (
+                              <SelectItem key={ho.id} value={ho.hoNo}>
+                                {ho.hoNo}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     )}
@@ -278,7 +305,7 @@ export default function SignupScreen() {
                   </View>
                   <Button onPress={() => handleSignup(() => router.replace("/"))} style={styles.submitButton}>
                     <Text style={styles.buttonText}>{isSocialSignup ? "소셜 회원가입 완료" : "회원가입 완료"}</Text>
-                  </Button>{" "}
+                  </Button>
                 </View>
               )}
             </CardContent>

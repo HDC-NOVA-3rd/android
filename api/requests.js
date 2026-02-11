@@ -15,10 +15,28 @@ export const API_PATHS = {
     APARTMENT: "/member/apartment",
     CHANGE_PW: "/member/password",
   },
+  FACILITY: {
+    FACILITY_LIST: "/apartment/{apartmentId}/facility",
+    DETAIL: "/facility/{facilityId}",
+    SPACES: "/facility/{facilityId}/space",
+    SPACE_DETAIL: "/facility/space/{spaceId}",
+  },
+  RESERVATION: {
+    CREATE: "/reservation",
+    MY_LIST: "/reservation/me",
+    DETAIL: "/reservation/{reservationId}",
+    CANCEL: "/reservation/{reservationId}/cancel",
+    OCCUPIED: "/reservation/availability",
+  },
   CHAT: {
     SEND: "/chat",
     SESSIONS: "/chat/sessions",
     SESSION_MESSAGES: (sessionId) => `/chat/sessions/${sessionId}/messages`,
+    DELETE_SESSION: (sessionId) => `/chat/sessions/${sessionId}`,
+    DELETE_ALL_SESSIONS: "/chat/sessions",
+  },
+  NOTICE: {
+    LIST: "/notice",
   },
   HOME_ENV: {
     ROOMS_BY_HO: (hoId) => `/room/ho/${hoId}`,
