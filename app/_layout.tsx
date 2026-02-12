@@ -58,6 +58,7 @@ export default function RootLayout() {
             <Stack.Screen name="login" options={{ headerShown: false }} />
             <Stack.Screen name="signup" options={{ title: "회원가입" }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="room/[roomId]" options={{ title: "방" }} />
 
             <Stack.Screen name="facility/[facilityId]" options={{ title: "시설 상세", headerShown: false }} />
             <Stack.Screen name="facility/reservation/[spaceId]" options={{ title: "예약하기", headerShown: false }} />

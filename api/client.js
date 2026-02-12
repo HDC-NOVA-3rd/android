@@ -9,7 +9,7 @@ export const BASE_URL = (
   process.env.EXPO_PUBLIC_API_URL ||
   Platform.select({
     // iOS 시뮬레이터용 (localhost 사용 가능)
-    ios: "http://localhost:8080/api",
+    ios: "http://localhost:/api",
     // 안드로이드 에뮬레이터용 (10.0.2.2가 내 컴퓨터를 가리킴)
     android: "http://10.0.2.2:8080/api",
   })
