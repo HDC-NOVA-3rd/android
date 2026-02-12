@@ -1,3 +1,4 @@
+// chat.tsx
 import {
   archiveId,
   getArchivedIds,
@@ -43,8 +44,25 @@ const CHAT_INTENTS: readonly ChatIntent[] = [
   "MY_DONG_HO",
   "APARTMENT_DONG_LIST",
   "FACILITY_INFO",
+  "FACILITY_LIST",
+
+  "SPACE_LIST",
+  "SPACE_INFO",
+  "SPACE_BY_CAPACITY",
+
+  "NOTICE_LIST",
+  "NOTICE_DETAIL",
+
+  "COMPLAINT_LIST",
+  "COMPLAINT_DETAIL",
+
+  "RESERVATION_LIST",
+  "RESERVATION_DETAIL",
+
+  "DEVICE_CONTROL",
   "APARTMENT_WEATHER",
   "SMALL_TALK",
+  "FREE_CHAT",
   "UNKNOWN",
 ] as const;
 
@@ -329,7 +347,7 @@ export default function ChatScreen() {
     }
   };
 
-  // ✅ Drawer에서 추천 질문 클릭 → Drawer 닫고 바로 전송
+  //  Drawer에서 추천 질문 클릭 → Drawer 닫고 바로 전송
   const handleQuickSendFromSidebar = async (q: string) => {
     if (isMobile) closeDrawer();
     await handleSend(q);
@@ -338,6 +356,11 @@ export default function ChatScreen() {
   // 빠른 응답 예시(채팅 입력창 위)
   const quickReplies = [
     "내 입주민 정보 보여줘",
+    "공지사항 보여줘",
+    "내 민원 목록 보여줘",
+    "내 예약 목록 보여줘",
+    "헬스장 가격 알려줘",
+    "스터디룸 4명 가능한 공간 찾아줘",
     "헬스장 운영시간이 언제야?",
     "지금 거실 온도 알려줘",
     "내 동/호 정보 뭐야?",

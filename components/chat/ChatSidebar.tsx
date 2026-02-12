@@ -37,7 +37,7 @@ type Props = {
   onToggleDebug?: () => void;
   onOpenPrivacy?: () => void;
 
-  // ✅ 롱프레스 미리보기(최근 메시지 n개)
+  //  롱프레스 미리보기(최근 메시지 n개)
   onPeekMessages?: (sessionId: string) => Promise<PeekItem[]>;
   peekLimit?: number; // 기본 5
 };
@@ -54,7 +54,7 @@ const C = {
   mutedChip: "#f3f4f6",
 };
 
-// ✅ "삭제는 길게" 힌트 1회 노출용 키(웹/모바일 공통)
+//  "삭제는 길게" 힌트 1회 노출용 키(웹/모바일 공통)
 const DELETE_HINT_KEY = "chat_delete_hint_dismissed";
 
 async function getDeleteHintDismissed(): Promise<boolean> {

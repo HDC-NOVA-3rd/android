@@ -70,6 +70,7 @@ export default function ChatRoom({
               content={item.content}
               intent={item.intent}
               data={item.data}
+              onQuickSend={(text) => onSend(text)}
             />
           )}
           onContentSizeChange={scrollToEnd}
