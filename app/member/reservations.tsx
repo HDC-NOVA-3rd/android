@@ -20,8 +20,8 @@ export default function ReservationsScreen() {
   // 선택된 예약 상세 정보 (QR 코드 모달용)
   const [selectedReservation, setSelectedReservation] = useState<ReservationResponse | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
-  // 활성화된 탭 상태
-  const [activeTab, setActiveTab] = useState<"upcoming" | "completed" | "cancelled">("upcoming");
+  // 2. 탭 상태를 4가지로 변경
+  const [activeTab, setActiveTab] = useState<ReservationResponse["status"]>("INUSE"); // 기본값을 '이용 중'으로 하여 QR 접근성을 높임
 
   useEffect(() => {
     fetchBookings();
@@ -67,33 +67,48 @@ export default function ReservationsScreen() {
     setRefreshing(false);
   };
 
-  const filteredBookings = reservationList.filter((b) => {
-    if (activeTab === "upcoming") return b.status === "CONFIRMED" && parseISO(b.startTime) >= new Date();
-    if (activeTab === "completed")
-      return b.status === "COMPLETED" || (b.status === "CONFIRMED" && parseISO(b.startTime) < new Date());
-    if (activeTab === "cancelled") return b.status === "CANCELLED";
-    return true;
-  });
+  // 3. 필터링 로직 단순화 (Status 값만 비교)
+  const filteredBookings = reservationList.filter((b) => b.status === activeTab);
 
-  const getStatusBadge = (status: string, startTime: string) => {
-    if (status === "CANCELLED")
-      return (
-        <Badge variant="destructive" style={{ paddingVertical: 2 }}>
-          <Text style={styles.badgeText}>예약 취소</Text>
-        </Badge>
-      );
-    if (status === "COMPLETED" || parseISO(startTime) < new Date())
-      return (
-        <Badge variant="secondary" style={{ paddingVertical: 2 }}>
-          <Text style={styles.badgeText}>이용 완료</Text>
-        </Badge>
-      );
-    return (
-      <Badge style={{ backgroundColor: "#10b981", paddingVertical: 2 }}>
-        <Text style={styles.badgeText}>예약 확정</Text>
-      </Badge>
-    );
+  // 4. 상태별 뱃지 컴포넌트
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "INUSE":
+        return (
+          <Badge style={{ backgroundColor: "#2563eb", paddingVertical: 2 }}>
+            <Text style={{ color: "white", fontSize: 12, fontWeight: "bold" }}>이용 중</Text>
+          </Badge>
+        );
+      case "CONFIRMED":
+        return (
+          <Badge style={{ backgroundColor: "#10b981", paddingVertical: 2 }}>
+            <Text style={{ color: "white", fontSize: 12, fontWeight: "bold" }}>예약 확정</Text>
+          </Badge>
+        );
+      case "COMPLETED":
+        return (
+          <Badge variant="secondary" style={{ paddingVertical: 2 }}>
+            <Text style={{ color: "#374151", fontSize: 12 }}>이용 완료</Text>
+          </Badge>
+        );
+      case "CANCELLED":
+        return (
+          <Badge variant="destructive" style={{ paddingVertical: 2 }}>
+            <Text style={{ color: "white", fontSize: 12 }}>취소됨</Text>
+          </Badge>
+        );
+      default:
+        return null;
+    }
   };
+
+  // 5. 탭 메뉴 라벨 정의
+  const TABS: { key: ReservationResponse["status"]; label: string }[] = [
+    { key: "INUSE", label: "이용 중" },
+    { key: "CONFIRMED", label: "예정" },
+    { key: "COMPLETED", label: "완료" },
+    { key: "CANCELLED", label: "취소" },
+  ];
 
   const BookingCard = ({ booking }: { booking: ReservationResponse }) => (
     <Card style={styles.card}>
@@ -105,7 +120,7 @@ export default function ReservationsScreen() {
               {booking.paymentMethod === "MANAGEMENT_FEE" ? "관리비 청구" : "카드 결제"}
             </CardDescription>
           </View>
-          {getStatusBadge(booking.status, booking.startTime)}
+          {getStatusBadge(booking.status)}
         </View>
       </CardHeader>
       <CardContent style={styles.cardContent}>
@@ -135,29 +150,28 @@ export default function ReservationsScreen() {
           <Text style={styles.priceValue}>{booking.totalPrice.toLocaleString()}원</Text>
         </View>
 
-        {booking.status === "CONFIRMED" && parseISO(booking.startTime) >= new Date() && (
-          <>
+        <View style={styles.buttonContainer}>
+          {/* 1. 이용 중(INUSE)일 때: QR 코드 버튼 노출 */}
+          {booking.status === "INUSE" && (
             <Button
-              variant="outline"
-              style={styles.qrButton}
+              style={styles.qrButton} // 스타일 수정됨 (파란색 배경)
               onPress={() => {
                 setSelectedReservation(booking);
                 setModalVisible(true);
               }}
             >
-              <Feather name="maximize" size={16} color="black" />
-              <Text style={styles.qrButtonText}>QR 코드 보기</Text>
+              <Feather name="maximize" size={18} color="white" style={{ marginRight: 8 }} />
+              <Text style={styles.qrButtonText}>QR 코드 열기</Text>
             </Button>
-            <Button
-              variant="destructive"
-              style={{ marginTop: 8, height: 40, flexDirection: "row", gap: 8 }}
-              onPress={() => handleCancel(booking.id)}
-            >
-              <Feather name="x-circle" size={16} color="white" />
+          )}
+
+          {/* 2. 예약 확정(CONFIRMED)일 때: 취소 버튼 노출 */}
+          {booking.status === "CONFIRMED" && (
+            <Button variant="destructive" style={styles.cancelButton} onPress={() => handleCancel(booking.id)}>
               <Text style={{ color: "white", fontWeight: "600" }}>예약 취소</Text>
             </Button>
-          </>
-        )}
+          )}
+        </View>
       </CardContent>
     </Card>
   );
@@ -168,20 +182,18 @@ export default function ReservationsScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Feather name="arrow-left" size={24} color="black" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>내 예약 내역</Text>
+        <Text style={styles.headerTitle}>내 예약 관리</Text>
       </View>
 
       {/* Tabs */}
       <View style={styles.tabBar}>
-        {(["upcoming", "completed", "cancelled"] as const).map((tab) => (
+        {TABS.map((tab) => (
           <TouchableOpacity
-            key={tab}
-            style={[styles.tab, activeTab === tab && styles.activeTab]}
-            onPress={() => setActiveTab(tab)}
+            key={tab.key}
+            style={[styles.tab, activeTab === tab.key && styles.activeTab]}
+            onPress={() => setActiveTab(tab.key)}
           >
-            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
-              {tab === "upcoming" ? "예정" : tab === "completed" ? "완료" : "취소"}
-            </Text>
+            <Text style={[styles.tabText, activeTab === tab.key && styles.activeTabText]}>{tab.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
