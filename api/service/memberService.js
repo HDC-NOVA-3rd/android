@@ -38,3 +38,13 @@ export const changePassword = async (currentPassword, newPassword) => {
     throw error;
   }
 };
+
+// 로그인 시: 토큰 등록
+export const registerPushToken = async (pushToken) => {
+  return client.post(API_PATHS.MEMBER.ADD_PUSH_TOKEN, { pushToken });
+};
+
+// 로그아웃 시: 토큰 삭제
+export const removePushToken = async () => {
+  return client.delete(API_PATHS.MEMBER.REMOVE_PUSH_TOKEN);
+};

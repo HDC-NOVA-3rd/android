@@ -76,9 +76,7 @@ export const login = async (loginRequest) => {
 // 인증 코드 교환 API 호출 함수
 export const exchangeAuthCode = async (code) => {
   try {
-    const response = await client.post("/member/oauth/exchange", {
-      code,
-    });
+    const response = await client.post(API_PATHS.AUTH.EXCHANGE_CODE, { code });
     return response.data;
   } catch (error) {
     console.error("🔥 Auth Code 교환 실패 상세:", error.response?.data || error.message);
@@ -95,9 +93,7 @@ export const refresh = async (refreshToken) => {
 
     const response = await axios.post(
       url,
-      {
-        refreshToken: refreshToken,
-      },
+      { refreshToken: refreshToken },
       {
         headers: {
           "Content-Type": "application/json",

@@ -23,7 +23,7 @@ export interface ReservationResponse {
   ownerPhone: string;
   paymentMethod: "MANAGEMENT_FEE" | "ONLINE_PAYMENT";
   qrToken: string;
-  status: "CONFIRMED" | "CANCELLED" | "COMPLETED";
+  status: "CONFIRMED" | "CANCELLED" | "COMPLETED" | "INUSE";
 }
 
 export interface OccupiedReservation {

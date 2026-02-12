@@ -9,11 +9,14 @@ export const API_PATHS = {
     REFRESH: "/member/refresh",
     FIND_ID: "/member/findInfo",
     RESET_PW: "/member/resetPW",
+    EXCHANGE_CODE: "/member/oauth/exchange",
   },
   MEMBER: {
     PROFILE: "/member/profile",
     APARTMENT: "/member/apartment",
     CHANGE_PW: "/member/password",
+    ADD_PUSH_TOKEN: "/member/push-token",
+    REMOVE_PUSH_TOKEN: "/member/push-token",
   },
   FACILITY: {
     FACILITY_LIST: "/apartment/{apartmentId}/facility",
