@@ -58,3 +58,10 @@ export const getOccupiedReservations = async (spaceId: number, date: string) => 
   });
   return response.data;
 };
+
+export const requestQrScan = async (spaceId: number) => {
+  const response = await client.post(API_PATHS.RESERVATION.QRSCAN, null, {
+    params: { spaceId },
+  });
+  return response.data;
+};
