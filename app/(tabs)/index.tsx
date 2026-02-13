@@ -1,10 +1,17 @@
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+
+import { useAuth } from "@/context/AuthContext";
+
 import { getMyApartmentWeather } from "@/api/service/apartmentWeatherApi";
 import { getHomeRoomsMy, HomeRoomCard } from "@/api/service/homeEnvironmentApi";
 import { getMyApartmentInfo } from "@/api/service/memberService";
-import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+
+// ✅ 모드 가져오기
+import { getMyModes } from "@/api/service/modeService";
+import type { ModeListItem } from "../../app/types/mode";
+
 type WeatherCard = {
   temp: number | null;
   humidity: number | null;
@@ -24,8 +31,11 @@ type MyApartment = {
 export default function HomeTab() {
   const router = useRouter();
   const { accessToken, isLoading } = useAuth();
+
   const [apt, setApt] = useState<MyApartment | null>(null);
   const [rooms, setRooms] = useState<HomeRoomCard[]>([]);
+  const [modes, setModes] = useState<ModeListItem[]>([]);
+
   const [weather, setWeather] = useState<WeatherCard>({
     temp: null,
     humidity: null,
@@ -34,39 +44,39 @@ export default function HomeTab() {
     conditionText: "--",
   });
 
-  useEffect(() => {
-    // 로그인 전이면 아예 호출 안 함
-    // ✅ AuthProvider가 세션 복구 중이면 기다림 (토큰 아직 세팅 전)
-    if (isLoading) return;
+  useFocusEffect(
+    useCallback(() => {
+      if (isLoading) return;
+      if (!accessToken) return;
 
-    // ✅ 로그인 전이면 API 호출 자체를 안 함
-    if (!accessToken) return;
-    const load = async () => {
-      try {
-        // 0) 헤더용(아파트명/동/호)
-        const aptData = await getMyApartmentInfo();
-        setApt(aptData);
+      const load = async () => {
+        try {
+          const aptData = await getMyApartmentInfo();
+          setApt(aptData);
 
-        // 1) 방 카드 데이터
-        const cards = await getHomeRoomsMy();
-        setRooms(cards);
+          const cards = await getHomeRoomsMy();
+          setRooms(cards);
 
-        // 2) 외부 날씨
-        const w = await getMyApartmentWeather();
-        setWeather({
-          temp: w?.temperature ?? null,
-          humidity: w?.humidity ?? null,
-          airText: w?.airQuality ?? "좋음",
-          locationText: w?.locationName ?? "",
-          conditionText: w?.condition ?? "--",
-        });
-      } catch (e) {
-        console.log("홈 로딩 실패:", e);
-      }
-    };
+          const w = await getMyApartmentWeather();
+          setWeather({
+            temp: w?.temperature ?? null,
+            humidity: w?.humidity ?? null,
+            airText: w?.airQuality ?? "--",
+            locationText: w?.locationName ?? "",
+            conditionText: w?.condition ?? "--",
+          });
 
-    load();
-  }, [accessToken, isLoading]);
+          // ✅ 모드 목록 불러오기
+          const ms = await getMyModes();
+          setModes(ms ?? []);
+        } catch (e) {
+          console.log("홈 로딩 실패:", e);
+        }
+      };
+
+      load();
+    }, [accessToken, isLoading]),
+  );
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
@@ -127,7 +137,12 @@ export default function HomeTab() {
         <Pressable
           key={card.roomId}
           style={styles.roomCard}
-          onPress={() => router.push(`/room/${card.roomId}`)}
+          onPress={() =>
+            router.push({
+              pathname: "/room/[roomId]" as any,
+              params: { roomId: String(card.roomId) },
+            })
+          }
         >
           <View style={styles.roomCardTop}>
             <Text style={styles.roomName}>{card.roomName}</Text>
@@ -143,28 +158,52 @@ export default function HomeTab() {
         </Pressable>
       ))}
 
-      {/* 모드 섹션 (UI만) */}
+      {/* 모드 섹션 */}
       <Text style={[styles.sectionTitle, { marginTop: 18 }]}>모드</Text>
 
-      <View style={styles.modeCard}>
-        <Text style={styles.modeTitle}>외출 모드</Text>
-        <Text style={styles.modeSub}>설정 안 됨</Text>
-        <Text style={styles.chevron}>›</Text>
-      </View>
+      {modes.map((m) => (
+        <Pressable
+          key={m.modeId}
+          style={styles.modeCard}
+          onPress={() =>
+            router.push({
+              pathname: "/mode/[modeId]" as any,
+              params: { modeId: String(m.modeId) },
+            })
+          }
+        >
+          <View style={styles.modeHeaderRow}>
+            <Text style={styles.modeTitle} numberOfLines={1}>
+              {m.modeName}
+            </Text>
 
-      <View style={styles.modeCard}>
-        <Text style={styles.modeTitle}>취침 모드</Text>
-        <Text style={styles.modeSub}>매일 23:00</Text>
-        <Text style={styles.chevron}>›</Text>
-      </View>
+            <View style={styles.badgeRow}>
+              {m.isDefault ? (
+                <View style={styles.badgeDefault}>
+                  <Text style={styles.badgeDefaultText}>기본</Text>
+                </View>
+              ) : (
+                <View style={styles.badgeCustom}>
+                  <Text style={styles.badgeCustomText}>커스텀</Text>
+                </View>
+              )}
 
-      <View style={styles.modeCard}>
-        <Text style={styles.modeTitle}>귀가 모드</Text>
-        <Text style={styles.modeSub}>평일 18:00</Text>
-        <Text style={styles.chevron}>›</Text>
-      </View>
+              {!m.isEditable && (
+                <View style={styles.badgeLock}>
+                  <Text style={styles.badgeLockText}>편집불가</Text>
+                </View>
+              )}
+            </View>
+          </View>
 
-      <Pressable style={styles.addModeBox} onPress={() => console.log("커스텀 모드 추가")}>
+          <Text style={styles.chevron}>›</Text>
+        </Pressable>
+      ))}
+
+      <Pressable
+        style={styles.addModeBox}
+        onPress={() => router.push({ pathname: "/mode/create" as any })}
+      >
         <Text style={styles.addModePlus}>＋</Text>
         <Text style={styles.addModeText}>커스텀 모드 추가</Text>
       </Pressable>
@@ -190,9 +229,15 @@ const weatherColor = (condition?: string) => {
       return "#64748B";
   }
 };
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#F6F7FB" },
-  container: { flex: 1, padding: 12, paddingBottom: 24, marginTop: 40, backgroundColor: "#F6F7FB" },
+  container: {
+    padding: 12,
+    paddingBottom: 120,
+    marginTop: 40,
+    backgroundColor: "#F6F7FB",
+  },
 
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   headerTitle: { fontSize: 20, fontWeight: "800" },
@@ -219,6 +264,7 @@ const styles = StyleSheet.create({
   weatherCardGray: { backgroundColor: "#64748B" },
   weatherMainValue: { color: "white", fontSize: 20, fontWeight: "900" },
   weatherLabel: { color: "white", fontWeight: "700" },
+
   roomCard: { marginTop: 8, backgroundColor: "white", borderRadius: 16, padding: 14 },
   roomCardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   roomName: { fontSize: 17, fontWeight: "900" },
@@ -236,7 +282,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
-  modeTitle: { flex: 1, fontWeight: "900" },
+  modeHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+
+  // 기존 modeTitle에서 flex:1 제거하고 아래로 교체 추천
+  modeTitle: {
+    fontWeight: "900",
+    fontSize: 16,
+    flexShrink: 1,
+  },
+
+  badgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
   modeSub: { color: "#666", fontWeight: "700" },
 
   addModeBox: {
@@ -254,4 +318,40 @@ const styles = StyleSheet.create({
   },
   addModePlus: { fontSize: 18, fontWeight: "900", color: "#666" },
   addModeText: { fontWeight: "900", color: "#666" },
+
+  badgeDefault: {
+    backgroundColor: "#E2E8F0",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  badgeDefaultText: {
+    fontWeight: "900",
+    fontSize: 12,
+    color: "#334155",
+  },
+  badgeCustom: {
+    backgroundColor: "#2563EB",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  badgeCustomText: {
+    fontWeight: "900",
+    fontSize: 12,
+    color: "white",
+  },
+  badgeLock: {
+    backgroundColor: "#F1F5F9",
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+  },
+  badgeLockText: {
+    fontWeight: "900",
+    fontSize: 11,
+    color: "#64748B",
+  },
 });

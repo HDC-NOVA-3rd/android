@@ -74,8 +74,12 @@ export default function RoomScreen() {
         const led = data.device?.find((d: any) => d.type === "LED" || d.deviceCode === "light-1");
         if (led) {
           const b = typeof led.brightness === "number" ? led.brightness : 0;
-          setBrightness(b);
-          setLedOn(b > 0);
+
+          // ✅ power가 명시되어 있으면 power를 우선
+          const p = typeof led.power === "boolean" ? led.power : b > 0;
+
+          setBrightness(p ? (b > 0 ? b : DEFAULT_LED_BRIGHTNESS) : 0);
+          setLedOn(p);
         }
 
         const fan = data.device?.find((d: any) => d.type === "FAN" || d.deviceCode === "fan-1");
@@ -117,9 +121,18 @@ export default function RoomScreen() {
     if (!Number.isFinite(roomIdNum)) return;
 
     if (!value) {
+      // ✅ UI도 바로 0으로 맞추기
       setLedOn(false);
+      setBrightness(0);
+
+      // ✅ MQTT도 밝기 0 + OFF로 보내기 (라즈베리파이가 brightness 기반이면 안전)
+      publishCommand("light-1", "BRIGHTNESS", 0);
       publishCommand("light-1", "POWER", "OFF");
-      await patchDeviceStateApi(roomIdNum, { devices: [{ deviceCode: "light-1", power: false }] });
+
+      // ✅ DB에도 power=false, brightness=0 둘 다 저장
+      await patchDeviceStateApi(roomIdNum, {
+        devices: [{ deviceCode: "light-1", power: false, brightness: 0 }],
+      });
       return;
     }
 
@@ -132,24 +145,6 @@ export default function RoomScreen() {
 
     await patchDeviceStateApi(roomIdNum, {
       devices: [{ deviceCode: "light-1", power: true, brightness: nextBrightness }],
-    });
-  };
-
-  /** ✅ 밝기 조절 */
-  const onBrightnessCommit = async (value: number) => {
-    if (!Number.isFinite(roomIdNum)) return;
-
-    const b = Math.round(value);
-    setBrightness(b);
-
-    const nextPower = b > 0;
-    setLedOn(nextPower);
-
-    publishCommand("light-1", "BRIGHTNESS", b);
-    publishCommand("light-1", "POWER", nextPower ? "ON" : "OFF");
-
-    await patchDeviceStateApi(roomIdNum, {
-      devices: [{ deviceCode: "light-1", power: nextPower, brightness: b }],
     });
   };
 
@@ -176,6 +171,26 @@ export default function RoomScreen() {
 
     await patchDeviceStateApi(roomIdNum, {
       devices: [{ deviceCode: "fan-1", targetTemp: rounded }],
+    });
+  };
+  /** ✅ 밝기 조절(슬라이더에서 손 뗄 때) */
+  const onBrightnessCommit = async (value: number) => {
+    if (!Number.isFinite(roomIdNum)) return;
+
+    const b = Math.round(value);
+
+    // ✅ UI 반영
+    setBrightness(b);
+    const nextPower = b > 0;
+    setLedOn(nextPower);
+
+    // ✅ MQTT 반영 (0이면 OFF)
+    publishCommand("light-1", "BRIGHTNESS", b);
+    publishCommand("light-1", "POWER", nextPower ? "ON" : "OFF");
+
+    // ✅ DB 반영
+    await patchDeviceStateApi(roomIdNum, {
+      devices: [{ deviceCode: "light-1", power: nextPower, brightness: b }],
     });
   };
 

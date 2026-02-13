@@ -47,4 +47,11 @@ export const API_PATHS = {
   APARTMENT: {
     WEATHER: (apartmentId) => `/apartment/${apartmentId}/weather`,
   },
+  MODE: {
+    LIST: "/mode/my",
+    DETAIL: "/mode/{modeId}",
+    EXECUTE: "/mode/{modeId}/execute",
+    CREATE: "/mode/my",
+    SCHEDULES: "/mode/{modeId}/schedule",
+  },
 };
