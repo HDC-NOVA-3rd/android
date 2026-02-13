@@ -1,6 +1,7 @@
-import { Button } from "@/components/ui/button";
 import React from "react";
 import { Text, View } from "react-native";
+import CardContainer from "./CardContainer";
+import TossCell from "./TossCell";
 
 export default function ComplaintListCard({
   data,
@@ -11,55 +12,46 @@ export default function ComplaintListCard({
 }) {
   const items = data?.complaints ?? data?.items ?? data?.list ?? [];
 
-  if (!Array.isArray(items) || items.length === 0) {
-    return (
-      <View style={{ marginTop: 10 }}>
-        <Text style={{ fontWeight: "800" }}>민원</Text>
-        <Text style={{ color: "#666", marginTop: 4 }}>조회 결과가 없어요.</Text>
-      </View>
-    );
-  }
-
   return (
-    <View style={{ marginTop: 10, gap: 8 }}>
-      <Text style={{ fontWeight: "800" }}>민원 목록</Text>
+    <CardContainer>
+      <Text style={{ fontSize: 16, fontWeight: "800", color: "#111" }}>민원</Text>
+      <View style={{ height: 10 }} />
 
-      {items.map((c: any, idx: number) => {
-        const index = c?.index ?? idx + 1;
-        const title = c?.title ?? c?.subject ?? c?.type ?? "(항목)";
-        const status = c?.status ?? c?.state ?? "";
-        const createdAt = c?.createdAt ?? c?.created_at ?? c?.date ?? "";
+      {!Array.isArray(items) || items.length === 0 ? (
+        <Text style={{ fontSize: 13, color: "#8C94A1" }}>조회된 민원이 없습니다.</Text>
+      ) : (
+        <View>
+          {items.map((c: any, idx: number) => {
+            const index = c?.index ?? idx + 1;
+            const title = c?.title ?? c?.subject ?? c?.type ?? "(민원)";
+            const status = c?.status ?? "";
+            const date = c?.createdAt ?? c?.created_at ?? c?.date ?? "";
 
-        return (
-          <View
-            key={String(c?.complaintId ?? c?.id ?? index)}
-            style={{
-              borderWidth: 1,
-              borderColor: "#eee",
-              borderRadius: 12,
-              padding: 10,
-              backgroundColor: "white",
-            }}
-          >
-            <Text style={{ fontWeight: "700" }}>
-              {index}번 · {title}
-            </Text>
+            const subtitle = [date && String(date), status && `상태: ${status}`]
+              .filter(Boolean)
+              .join(" · ");
 
-            <View style={{ marginTop: 4, flexDirection: "row", gap: 10 }}>
-              {!!status && <Text style={{ color: "#666" }}>상태: {String(status)}</Text>}
-              {!!createdAt && <Text style={{ color: "#666" }}>{String(createdAt)}</Text>}
-            </View>
-
-            {!!onPickIndex && (
-              <View style={{ marginTop: 8 }}>
-                <Button variant="outline" onPress={() => onPickIndex(String(index))}>
-                  <Text>상세 보기</Text>
-                </Button>
+            return (
+              <View key={String(c?.complaintId ?? c?.id ?? index)}>
+                <TossCell
+                  title={`${index}번 · ${title}`}
+                  subtitle={subtitle || undefined}
+                  onPress={onPickIndex ? () => onPickIndex(String(index)) : undefined}
+                />
+                {idx !== items.length - 1 && (
+                  <View style={{ height: 1, backgroundColor: "#F1F3F6" }} />
+                )}
               </View>
-            )}
-          </View>
-        );
-      })}
-    </View>
+            );
+          })}
+        </View>
+      )}
+
+      {!!onPickIndex && (
+        <Text style={{ marginTop: 10, fontSize: 12, color: "#8C94A1" }}>
+          항목을 누르면 상세로 이동해요.
+        </Text>
+      )}
+    </CardContainer>
   );
 }
