@@ -1,8 +1,11 @@
 import client from "@/api/client";
 import { refresh } from "@/api/service/authService";
+import { registerPushToken, removePushToken } from "@/api/service/memberService";
 import { getRefreshToken, removeRefreshToken, setRefreshToken } from "@/api/tokenStorage";
 import { useRouter, useSegments } from "expo-router";
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { registerForPushNotificationsAsync } from "@/utils/notification";
+
 // AccessToken 에 따라 로그인, 로그아웃 처리
 type AuthContextType = {
   accessToken: string | null;
@@ -22,6 +25,7 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [devicePushToken, setDevicePushToken] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const segments = useSegments();
@@ -29,7 +33,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // 1. 초기 로딩: Refresh Token으로 Access Token 발급 시도 (자동 로그인)
   useEffect(() => {
-    const restoreSession = async () => {
+    const initializeApp = async () => {
+      try {
+        const token = await registerForPushNotificationsAsync();
+        if (token) {
+          setDevicePushToken(token);
+          console.log("Device Token 확보:", token);
+        }
+      } catch (err) {
+        console.error("토큰 발급 실패:", err);
+      }
+
       try {
         const storedRefreshToken = await getRefreshToken();
 
@@ -52,10 +66,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsLoading(false);
       }
     };
-
-    restoreSession();
+    initializeApp();
   }, []);
-
+  // 이 useEffect는 로그인(signIn), 자동 로그인(restore), 토큰 발급 완료 시점마다 실행되어 동기화를 맞춥니다.
+  useEffect(() => {
+    const syncTokenToServer = async () => {
+      if (accessToken && devicePushToken) {
+        try {
+          await registerPushToken(devicePushToken);
+          console.log("서버에 푸시 토큰 등록 완료");
+        } catch (error) {
+          console.error("푸시 토큰 서버 등록 실패:", error);
+        }
+      }
+    };
+    syncTokenToServer();
+  }, [accessToken, devicePushToken]);
   // 2. 리다이렉트 로직 (이전과 동일하지만 accessToken 변경되는 경우 실행)
   useEffect(() => {
     if (isLoading) return;
@@ -90,10 +116,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // 4. 로그아웃 처리
   const signOut = async () => {
-    await removeRefreshToken(); // SecureStore 삭제
-    setAccessToken(null); // State 초기화
-    delete client.defaults.headers.common["Authorization"];
-    router.replace("/login"); // 강제 이동
+    try {
+      // 로그아웃 전 서버에서 토큰 삭제 (알림 오지 않게 하기 위함)
+      if (accessToken && devicePushToken) {
+        await removePushToken();
+      }
+    } catch (e) {
+      console.warn("서버 토큰 삭제 실패 (네트워크 오류 등):", e);
+    } finally {
+      // 서버 통신 실패 여부와 상관없이 클라이언트 로그아웃 진행
+      await removeRefreshToken();
+      setAccessToken(null);
+      delete client.defaults.headers.common["Authorization"];
+      router.replace("/login");
+    }
   };
 
   return (

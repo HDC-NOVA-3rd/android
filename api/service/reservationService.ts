@@ -23,7 +23,7 @@ export interface ReservationResponse {
   ownerPhone: string;
   paymentMethod: "MANAGEMENT_FEE" | "ONLINE_PAYMENT";
   qrToken: string;
-  status: "CONFIRMED" | "CANCELLED" | "COMPLETED";
+  status: "CONFIRMED" | "CANCELLED" | "COMPLETED" | "INUSE";
 }
 
 export interface OccupiedReservation {
@@ -55,6 +55,13 @@ export const cancelReservation = async (id: number) => {
 export const getOccupiedReservations = async (spaceId: number, date: string) => {
   const response = await client.get<OccupiedReservation[]>(API_PATHS.RESERVATION.OCCUPIED, {
     params: { spaceId, date },
+  });
+  return response.data;
+};
+
+export const requestQrScan = async (spaceId: number) => {
+  const response = await client.post(API_PATHS.RESERVATION.QRSCAN, null, {
+    params: { spaceId },
   });
   return response.data;
 };

@@ -64,14 +64,17 @@ export default function ChatRoom({
           data={messages}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingBottom: 12, gap: 8 }}
-          renderItem={({ item }) => (
-            <ChatBubble
-              role={item.role}
-              content={item.content}
-              intent={item.intent}
-              data={item.data}
-            />
-          )}
+          renderItem={({ item }) => {
+            return (
+              <ChatBubble
+                role={item.role}
+                content={item.content}
+                intent={item.intent}
+                data={item.data}
+                onQuickSend={(text) => onSend(text)}
+              />
+            );
+          }}
           onContentSizeChange={scrollToEnd}
           keyboardShouldPersistTaps="handled"
         />
