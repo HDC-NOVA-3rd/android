@@ -30,6 +30,7 @@ export const API_PATHS = {
     DETAIL: "/reservation/{reservationId}",
     CANCEL: "/reservation/{reservationId}/cancel",
     OCCUPIED: "/reservation/availability",
+    QRSCAN: "/reservation/scan",
   },
   CHAT: {
     SEND: "/chat",
