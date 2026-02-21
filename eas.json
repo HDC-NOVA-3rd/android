@@ -8,14 +8,19 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "GOOGLE_SERVICES_JSON_BASE64": "dummy"
+        "GOOGLE_SERVICES_JSON_BASE64": "dummy",
+        "EXPO_PUBLIC_API_URL": "https://devhns3.labs-smart.com:58080/api"
       }
     },
     "preview": {
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "buildType": "apk",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://devhns3.labs-smart.com:58080/api"
+      }
     }
   },
   "submit": {
