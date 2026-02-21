@@ -12,6 +12,8 @@ export const BASE_URL = (
     ios: "http://localhost:/api",
     // 안드로이드 에뮬레이터용 (10.0.2.2가 내 컴퓨터를 가리킴)
     android: "http://10.0.2.2:8080/api",
+    // 개발 중 웹에서 테스트할 때 (필요 시)
+    web: "http://localhost:8080/api",
   })
 )
   ?.trim()
