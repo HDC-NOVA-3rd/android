@@ -332,7 +332,13 @@ export default function ChatScreen() {
 
       const answer = res?.answer ?? "(응답이 비어있어요)";
       const intent: ChatIntent = isChatIntent(res?.intent) ? res.intent : "UNKNOWN";
-      appendMessage("ASSISTANT", answer, { intent, data: res?.data });
+      appendMessage("ASSISTANT", answer, {
+        intent,
+        data: {
+          ...(res?.data ?? {}),
+          rag: res?.rag ?? res?.data?.rag, // rag 필드 일원화 시도 (res.data.rag 또는 최상위 res.rag)
+        },
+      });
 
       await refreshSessions(memberId);
     } catch (e: any) {
@@ -356,14 +362,21 @@ export default function ChatScreen() {
   // 빠른 응답 예시(채팅 입력창 위)
   const quickReplies = [
     "내 입주민 정보 보여줘",
+    "내 아파트 정보 보여줘",
+    "내 동/호 정보 보여줘",
+    "우리 아파트 동 목록 보여줘",
+    "등록된 방 목록 보여줘",
     "공지사항 보여줘",
     "내 민원 목록 보여줘",
     "내 예약 목록 보여줘",
+    "우리 아파트 시설 뭐 있어?",
     "골프장 비용 알려줘",
     "스터디룸 4명 가능한 공간 찾아줘",
     "헬스장 운영시간이 언제야?",
     "지금 거실 온도 알려줘",
-    "내 동/호 정보 뭐야?",
+    "거실 온도 기록 보여줘",
+    "우리 아파트 날씨 알려줘",
+    "게스트하우스 6명 가능해?",
   ];
 
   return (

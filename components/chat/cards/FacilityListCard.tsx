@@ -1,21 +1,23 @@
+import { useRouter } from "expo-router";
 import React from "react";
 import { Text, View } from "react-native";
 import CardContainer from "./CardContainer";
 import TossCell from "./TossCell";
 
-export default function FacilityListCard({
-  data,
-  onQuickSend,
-}: {
-  data: any;
-  onQuickSend?: (text: string) => void;
-}) {
+export default function FacilityListCard({ data }: { data: any }) {
+  const router = useRouter();
   const facilities = data?.facilities ?? data?.items ?? data?.list ?? [];
+
+  const goDetail = (id: string) => {
+    router.push({
+      pathname: "/facility/[facilityId]",
+      params: { facilityId: id },
+    });
+  };
 
   return (
     <CardContainer>
       <Text style={{ fontSize: 16, fontWeight: "800", color: "#111" }}>시설 목록</Text>
-
       <View style={{ height: 10 }} />
 
       {!Array.isArray(facilities) || facilities.length === 0 ? (
@@ -28,11 +30,7 @@ export default function FacilityListCard({
 
             return (
               <View key={id}>
-                <TossCell
-                  title={name}
-                  subtitle="탭해서 공간 보기"
-                  onPress={onQuickSend ? () => onQuickSend(name) : undefined}
-                />
+                <TossCell title={name} subtitle="탭해서 상세 보기" onPress={() => goDetail(id)} />
                 {idx !== facilities.length - 1 && (
                   <View style={{ height: 1, backgroundColor: "#F1F3F6" }} />
                 )}
@@ -40,12 +38,6 @@ export default function FacilityListCard({
             );
           })}
         </View>
-      )}
-
-      {!!onQuickSend && (
-        <Text style={{ marginTop: 10, fontSize: 12, color: "#8C94A1" }}>
-          항목을 누르면 해당 시설 공간으로 이동해요.
-        </Text>
       )}
     </CardContainer>
   );
