@@ -332,7 +332,13 @@ export default function ChatScreen() {
 
       const answer = res?.answer ?? "(응답이 비어있어요)";
       const intent: ChatIntent = isChatIntent(res?.intent) ? res.intent : "UNKNOWN";
-      appendMessage("ASSISTANT", answer, { intent, data: res?.data });
+      appendMessage("ASSISTANT", answer, {
+        intent,
+        data: {
+          ...(res?.data ?? {}),
+          rag: res?.rag ?? res?.data?.rag, // rag 필드 일원화 시도 (res.data.rag 또는 최상위 res.rag)
+        },
+      });
 
       await refreshSessions(memberId);
     } catch (e: any) {

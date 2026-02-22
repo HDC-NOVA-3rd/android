@@ -12,15 +12,30 @@ import type { ChatIntent } from "../../.expo/types/chat";
 type ChatRole = "USER" | "ASSISTANT";
 
 // 채팅 아이템 타입
+export type RagChunk = {
+  id: string;
+  score: number;
+  sourceType?: "RULE" | "NOTICE" | "EVENT" | "GUIDE" | "DB" | "ETC" | string;
+  title?: string;
+  text: string;
+  metadata?: Record<string, any>;
+};
+
 export type ChatItem = {
   id: string;
   role: ChatRole;
   content: string;
   createdAt: number;
   intent?: ChatIntent;
-  data?: any;
+  data?: {
+    rag?: {
+      topK?: number;
+      chunks?: RagChunk[];
+    };
+    // 기존 카드용 data도 같이 쓰면 됨
+    [key: string]: any;
+  };
 };
-
 type Props = {
   title?: string;
   messages: ChatItem[];
