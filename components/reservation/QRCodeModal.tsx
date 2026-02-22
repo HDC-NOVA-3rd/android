@@ -1,9 +1,9 @@
-import { ReservationResponse } from "@/api/service/reservationService";
+import { ReservationResponse, requestQrScan } from "@/api/service/reservationService";
 import { Button } from "@/components/ui/button";
 import { Feather } from "@expo/vector-icons";
 import { format, parseISO } from "date-fns";
-import React from "react";
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useState } from "react";
+import { Modal, StyleSheet, Text, TouchableOpacity, View, Alert, ActivityIndicator } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 
 interface QRCodeModalProps {
@@ -13,7 +13,25 @@ interface QRCodeModalProps {
 }
 
 export function QRCodeModal({ booking, visible, onClose }: QRCodeModalProps) {
+  const [isLoading, setIsLoading] = useState(false); // 로딩 상태 추가
+
   if (!booking) return null;
+
+  // QR 스캔 요청 핸들러
+  const handleScanRequest = async () => {
+    if (!booking) return;
+
+    setIsLoading(true);
+    try {
+      await requestQrScan(booking.spaceId);
+      Alert.alert("스캔 요청 완료", "시설의 카메라가 활성화되었습니다.\nQR 코드를 리더기에 비춰주세요.");
+    } catch (error) {
+      console.error("QR Scan Request Failed:", error);
+      Alert.alert("요청 실패", "스캔 요청 중 오류가 발생했습니다. 다시 시도해주세요.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const QRCodePlaceholder = () => (
     <View style={styles.qrContainer}>
@@ -67,9 +85,15 @@ export function QRCodeModal({ booking, visible, onClose }: QRCodeModalProps) {
           </View>
 
           <View style={styles.actions}>
-            <Button variant="outline" style={styles.actionButton}>
-              <Feather name="download" size={16} color="black" />
-              <Text style={{ marginLeft: 8 }}>QR 코드 저장</Text>
+            <Button variant="outline" style={styles.actionButton} onPress={handleScanRequest} disabled={isLoading}>
+              {isLoading ? (
+                <ActivityIndicator size="small" color="black" />
+              ) : (
+                <>
+                  <Feather name="camera" size={16} color="black" />
+                  <Text style={{ marginLeft: 8 }}>QR 스캔 요청</Text>
+                </>
+              )}
             </Button>
             <Button onPress={onClose} style={styles.closeButton}>
               <Text style={styles.closeButtonText}>닫기</Text>
@@ -77,8 +101,8 @@ export function QRCodeModal({ booking, visible, onClose }: QRCodeModalProps) {
           </View>
 
           <View style={styles.footerNotice}>
-            <Text style={styles.noticeText}>• 이용 시작 30분 전부터 사용 가능</Text>
-            <Text style={styles.noticeText}>• 이용 종료 시 자동으로 비활성화됩니다</Text>
+            <Text style={styles.noticeText}>• 이용 시작 10분 전부터 사용 가능</Text>
+            <Text style={styles.noticeText}>• 이용 종료 10분 후 해당 QR은 비활성화됩니다</Text>
           </View>
         </View>
       </View>
