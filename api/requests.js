@@ -51,4 +51,12 @@ export const API_PATHS = {
   APARTMENT: {
     WEATHER: (apartmentId) => `/apartment/${apartmentId}/weather`,
   },
+  COMPLAINT: {
+    CREATE: "/complaint",
+    UPDATE: (id) => `/complaint/${id}`,
+    DELETE: (id) => `/complaint/${id}`,
+    MY_LIST: "/complaint/list/member", // @GetMapping("/list/member")
+    DETAIL: (id) => `/complaint/${id}/member`, // @GetMapping("/{complaintId}/member")
+    REVIEW: (id) => `/complaint/${id}/review`, // @PostMapping("/{complaintId}/review")
+  },
 };
