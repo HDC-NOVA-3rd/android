@@ -58,6 +58,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <Feather size={28} name="bell" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="complaint"
+        options={{
+          title: "민원",
+          tabBarIcon: ({ color }) => <Feather size={28} name="edit-3" color={color} />,
+        }}
+      />
     </Tabs>
   );
 }
