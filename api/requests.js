@@ -52,6 +52,7 @@ export const API_PATHS = {
   APARTMENT: {
     WEATHER: (apartmentId) => `/apartment/${apartmentId}/weather`,
   },
+
   MODE: {
     LIST: "/mode/my",
     LIST_ALL: "/mode/my/all",
@@ -62,5 +63,14 @@ export const API_PATHS = {
     ACTION: "/mode/{modeId}/action",
     VISIBILITY: "/mode/{modeId}/visibility",
     DELETE: "/mode/{modeId}",
+  },
+
+  COMPLAINT: {
+    CREATE: "/complaint",
+    UPDATE: (complaintId) => `/complaint/${complaintId}`,
+    DELETE: (complaintId) => `/complaint/${complaintId}`,
+    MY_LIST: "/complaint/list/member",
+    DETAIL: (complaintId) => `/complaint/${complaintId}/member`,
+    REVIEW: (complaintId) => `/complaint/${complaintId}/review`,
   },
 };

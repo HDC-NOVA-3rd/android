@@ -17,7 +17,9 @@
     },
     "production": {
       "autoIncrement": true,
-      "buildType": "apk",
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://devhns3.labs-smart.com:58080/api"
       }

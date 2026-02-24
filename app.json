@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "nova-3rd",
+    "name": "HDC APT",
     "slug": "my-app-dev",
     "scheme": "smarthome",
     "owner": "wnsrlf0721",
@@ -18,8 +18,7 @@
       "googleServicesFile": "./google-services.json",
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png"
+        "backgroundColor": "#E6F4FE"
       }
     },
     "extra": {

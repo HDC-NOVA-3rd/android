@@ -80,6 +80,15 @@ export default function RootLayout() {
               options={{ title: "공지사항 상세", headerShown: false }}
             />
 
+            <Stack.Screen 
+              name="complaint/[complaintId]" 
+              options={{ title: "민원 상세", headerShown: false }} 
+            />
+            <Stack.Screen 
+              name="complaint/create" 
+              options={{ title: "민원 신청", headerShown: false, presentation: "modal" }} 
+            />
+
             <Stack.Screen name="auth/findID" options={{ title: "아이디 찾기" }} />
             <Stack.Screen name="auth/resetPW" options={{ title: "비밀번호 재설정" }} />
           </Stack>
