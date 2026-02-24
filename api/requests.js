@@ -53,10 +53,10 @@ export const API_PATHS = {
   },
   COMPLAINT: {
     CREATE: "/complaint",
-    UPDATE: (id) => `/complaint/${id}`,
-    DELETE: (id) => `/complaint/${id}`,
-    MY_LIST: "/complaint/list/member", // @GetMapping("/list/member")
-    DETAIL: (id) => `/complaint/${id}/member`, // @GetMapping("/{complaintId}/member")
-    REVIEW: (id) => `/complaint/${id}/review`, // @PostMapping("/{complaintId}/review")
+    UPDATE: (complaintId) => `/complaint/${complaintId}`,
+    DELETE: (complaintId) => `/complaint/${complaintId}`,
+    MY_LIST: "/complaint/list/member", 
+    DETAIL: (complaintId) => `/complaint/${complaintId}/member`, 
+    REVIEW: (complaintId) => `/complaint/${complaintId}/review`, 
   },
 };
