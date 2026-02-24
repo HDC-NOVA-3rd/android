@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import React from "react";
 import { Text, View } from "react-native";
 import type { RoomListData } from "../../../.expo/types/chat";
@@ -5,7 +6,17 @@ import CardContainer from "./CardContainer";
 import TossCell from "./TossCell";
 
 export default function RoomListCard({ data }: { data: RoomListData }) {
+  const router = useRouter();
   const rooms = Array.isArray(data?.rooms) ? data.rooms : [];
+
+  const goRoom = (roomId: number | string | undefined | null) => {
+    if (roomId === undefined || roomId === null) return;
+
+    router.push({
+      pathname: "/room/[roomId]",
+      params: { roomId: String(roomId) },
+    });
+  };
 
   return (
     <CardContainer>
@@ -19,7 +30,12 @@ export default function RoomListCard({ data }: { data: RoomListData }) {
         <View>
           {rooms.map((r, idx) => (
             <View key={String(r?.roomId ?? idx)}>
-              <TossCell title={r.name} subtitle="환경 상태 확인" />
+              <TossCell
+                title={r.name}
+                subtitle="환경 상태 확인"
+                onPress={() => goRoom(r?.roomId)}
+              />
+
               {idx !== rooms.length - 1 && (
                 <View style={{ height: 1, backgroundColor: "#F1F3F6" }} />
               )}
