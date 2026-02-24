@@ -19,9 +19,11 @@ export type ModeActionItem = {
 };
 
 export type ModeScheduleItem = {
-  startTime: string | null; // "23:00:00" or "23:00"
-  repeatDays: string | null; // ex) "매일" "평일" "월,수,금"
-  enabled: boolean;
+  startTime: string | null;
+  endTime?: string | null;
+  endModeId?: number | null;
+  repeatDays: string | null;
+  isEnabled: boolean;
 };
 
 export type ModeDetail = {

@@ -1,3 +1,5 @@
+// room/[roomId].tsx
+
 import { Feather } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
@@ -24,9 +26,8 @@ export default function RoomScreen() {
   // ✅ 토픽
   const HO_ID = "1";
   const DEFAULT_LED_BRIGHTNESS = 50;
-  const TOPIC_CMD = `hdc/${HO_ID}/assistant/execute/req`;
-  const TOPIC_ENV = "hdc/device/dht11-1/env/data";
-
+  const TOPIC_CMD = `hdc/${HO_ID}/room/${roomIdNum}/device/execute/req`;
+  const TOPIC_ENV = `hdc/${HO_ID}/room/${roomIdNum}/env/data`;
   const { connectStatus, publish, subscribe, unsubscribe, lastMessage } = useMqtt(brokerUrl);
 
   // ✅ 실내 환경 state
@@ -41,7 +42,8 @@ export default function RoomScreen() {
   const [targetTemp, setTargetTemp] = useState(24);
 
   const invalidRoom = !Number.isFinite(roomIdNum);
-
+  const [ledCode, setLedCode] = useState<string>("light-1");
+  const [fanCode, setFanCode] = useState<string>("fan-1");
   /** ✅ MQTT 명령 publish */
   const publishCommand = (deviceCode: string, command: string, value: any) => {
     if (!Number.isFinite(roomIdNum)) return;
@@ -71,19 +73,21 @@ export default function RoomScreen() {
         setTemp(typeof data.temperature === "number" ? data.temperature : null);
         setHumi(typeof data.humidity === "number" ? data.humidity : null);
 
-        const led = data.device?.find((d: any) => d.type === "LED" || d.deviceCode === "light-1");
+        const led = data.device?.find((d: any) => d.type === "LED");
         if (led) {
-          const b = typeof led.brightness === "number" ? led.brightness : 0;
+          if (typeof led.deviceCode === "string") setLedCode(led.deviceCode);
 
-          // ✅ power가 명시되어 있으면 power를 우선
+          const b = typeof led.brightness === "number" ? led.brightness : 0;
           const p = typeof led.power === "boolean" ? led.power : b > 0;
 
           setBrightness(p ? (b > 0 ? b : DEFAULT_LED_BRIGHTNESS) : 0);
           setLedOn(p);
         }
 
-        const fan = data.device?.find((d: any) => d.type === "FAN" || d.deviceCode === "fan-1");
+        const fan = data.device?.find((d: any) => d.type === "FAN");
         if (fan) {
+          if (typeof fan.deviceCode === "string") setFanCode(fan.deviceCode);
+
           setFanOn(Boolean(fan.power));
           if (typeof fan.targetTemp === "number") setTargetTemp(fan.targetTemp);
         }
@@ -99,7 +103,7 @@ export default function RoomScreen() {
   useEffect(() => {
     if (connectStatus === "connected") subscribe(TOPIC_ENV);
     return () => unsubscribe(TOPIC_ENV);
-  }, [connectStatus, subscribe, unsubscribe]);
+  }, [connectStatus, subscribe, unsubscribe, TOPIC_ENV]);
 
   /** ✅ 2) ENV 메시지 오면 화면 갱신 */
   useEffect(() => {
@@ -114,7 +118,7 @@ export default function RoomScreen() {
     } catch (e) {
       console.log("ENV JSON 파싱 실패:", e);
     }
-  }, [lastMessage]);
+  }, [lastMessage, TOPIC_ENV]);
 
   /** ✅ 전등 토글 */
   const onToggleLed = async (value: boolean) => {
@@ -126,12 +130,11 @@ export default function RoomScreen() {
       setBrightness(0);
 
       // ✅ MQTT도 밝기 0 + OFF로 보내기 (라즈베리파이가 brightness 기반이면 안전)
-      publishCommand("light-1", "BRIGHTNESS", 0);
-      publishCommand("light-1", "POWER", "OFF");
-
+      publishCommand(ledCode, "BRIGHTNESS", 0);
+      publishCommand(ledCode, "POWER", "OFF");
       // ✅ DB에도 power=false, brightness=0 둘 다 저장
       await patchDeviceStateApi(roomIdNum, {
-        devices: [{ deviceCode: "light-1", power: false, brightness: 0 }],
+        devices: [{ deviceCode: ledCode, power: false, brightness: 0 }],
       });
       return;
     }
@@ -140,11 +143,11 @@ export default function RoomScreen() {
     setBrightness(nextBrightness);
     setLedOn(true);
 
-    publishCommand("light-1", "BRIGHTNESS", nextBrightness);
-    publishCommand("light-1", "POWER", "ON");
+    publishCommand(ledCode, "BRIGHTNESS", nextBrightness);
+    publishCommand(ledCode, "POWER", "ON");
 
     await patchDeviceStateApi(roomIdNum, {
-      devices: [{ deviceCode: "light-1", power: true, brightness: nextBrightness }],
+      devices: [{ deviceCode: ledCode, power: true, brightness: nextBrightness }],
     });
   };
 
@@ -153,10 +156,10 @@ export default function RoomScreen() {
     if (!Number.isFinite(roomIdNum)) return;
 
     setFanOn(value);
-    publishCommand("fan-1", "POWER", value ? "ON" : "OFF");
+    publishCommand(fanCode, "POWER", value ? "ON" : "OFF");
 
     await patchDeviceStateApi(roomIdNum, {
-      devices: [{ deviceCode: "fan-1", power: value }],
+      devices: [{ deviceCode: fanCode, power: value }],
     });
   };
 
@@ -167,10 +170,10 @@ export default function RoomScreen() {
     const rounded = Math.round(value);
     setTargetTemp(rounded);
 
-    publishCommand("fan-1", "SET_TEMP", rounded);
+    publishCommand(fanCode, "SET_TEMP", rounded);
 
     await patchDeviceStateApi(roomIdNum, {
-      devices: [{ deviceCode: "fan-1", targetTemp: rounded }],
+      devices: [{ deviceCode: fanCode, targetTemp: rounded }],
     });
   };
   /** ✅ 밝기 조절(슬라이더에서 손 뗄 때) */
@@ -185,12 +188,11 @@ export default function RoomScreen() {
     setLedOn(nextPower);
 
     // ✅ MQTT 반영 (0이면 OFF)
-    publishCommand("light-1", "BRIGHTNESS", b);
-    publishCommand("light-1", "POWER", nextPower ? "ON" : "OFF");
-
+    publishCommand(ledCode, "BRIGHTNESS", b);
+    publishCommand(ledCode, "POWER", nextPower ? "ON" : "OFF");
     // ✅ DB 반영
     await patchDeviceStateApi(roomIdNum, {
-      devices: [{ deviceCode: "light-1", power: nextPower, brightness: b }],
+      devices: [{ deviceCode: ledCode, power: nextPower, brightness: b }],
     });
   };
 

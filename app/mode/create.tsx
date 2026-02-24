@@ -1,6 +1,7 @@
 // app/mode/create.tsx
-
-import { useRouter } from "expo-router";
+import { createMode, setModeActions } from "@/api/service/modeService";
+import Slider from "@react-native-community/slider";
+import { Stack, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -15,7 +16,6 @@ import {
 
 import client from "@/api/client";
 import { getHomeRoomsMy, HomeRoomCard } from "@/api/service/homeEnvironmentApi";
-import { createMode } from "@/api/service/modeService";
 
 type SnapshotDevice = {
   deviceId: number;
@@ -27,6 +27,8 @@ type SnapshotDevice = {
   targetTemp?: number | null;
 };
 
+type Command = "POWER" | "BRIGHTNESS" | "SET_TEMP";
+
 type LocalAction = {
   id: string;
   roomId: number;
@@ -34,7 +36,7 @@ type LocalAction = {
   deviceId: number;
   deviceCode: string;
   deviceName: string;
-  command: "POWER" | "BRIGHTNESS" | "SET_TEMP";
+  command: Command;
   value: string; // "ON"/"OFF"/"10"/"24"
 };
 
@@ -42,12 +44,16 @@ function uid() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function getCommandsByType(type: SnapshotDevice["type"]): Command[] {
+  if (type === "LED") return ["POWER", "BRIGHTNESS"];
+  if (type === "FAN") return ["POWER"];
+  if (type === "AIRCON") return ["POWER", "SET_TEMP"];
+  return ["POWER"];
+}
+
 async function getRoomSnapshotDevices(roomId: number): Promise<SnapshotDevice[]> {
-  // 너가 이미 쓰는 스냅샷 엔드포인트가 /rooms/{roomId}/snapshot 라고 했으니 그 기준
-  const res = await client.get(`/rooms/${roomId}/snapshot`);
-  // res.data.device or res.data.devices 둘 다 대응
+  const res = await client.get(`/room/${roomId}/snapshot`);
   const arr = res.data?.device ?? res.data?.devices ?? [];
-  // deviceCode/name/type 정도만 필요
   return arr.map((d: any) => ({
     deviceId: d.deviceId ?? d.id,
     deviceCode: d.deviceCode,
@@ -75,8 +81,12 @@ export default function ModeCreateScreen() {
   const [selectedDeviceId, setSelectedDeviceId] = useState<number | null>(null);
   const [selectedDevice, setSelectedDevice] = useState<SnapshotDevice | null>(null);
 
-  const [command, setCommand] = useState<"POWER" | "BRIGHTNESS" | "SET_TEMP">("POWER");
-  const [value, setValue] = useState<string>("OFF");
+  const [command, setCommand] = useState<Command>("POWER");
+
+  // ✅ 값 UI(텍스트 입력 제거)
+  const [powerOn, setPowerOn] = useState<boolean>(false);
+  const [brightness, setBrightness] = useState<number>(50);
+  const [temp, setTemp] = useState<number>(24);
 
   const canCreate = useMemo(() => modeName.trim().length > 0, [modeName]);
 
@@ -99,14 +109,19 @@ export default function ModeCreateScreen() {
     setSelectedDeviceId(null);
     setSelectedDevice(null);
     setDevices([]);
+
     setCommand("POWER");
-    setValue("OFF");
+    setPowerOn(false);
+    setBrightness(50);
+    setTemp(24);
+
     setModalOpen(true);
   };
 
   const onSelectRoom = async (roomId: number, roomName: string) => {
     setSelectedRoomId(roomId);
     setSelectedRoomName(roomName);
+
     setSelectedDeviceId(null);
     setSelectedDevice(null);
     setDevices([]);
@@ -124,17 +139,16 @@ export default function ModeCreateScreen() {
     setSelectedDeviceId(d.deviceId);
     setSelectedDevice(d);
 
-    // 디바이스 타입에 따라 기본 command/value 추천
-    if (d.type === "LED") {
-      setCommand("POWER");
-      setValue("OFF");
-    } else if (d.type === "FAN") {
-      setCommand("POWER");
-      setValue("OFF");
-    } else if (d.type === "AIRCON") {
-      setCommand("SET_TEMP");
-      setValue("24");
-    }
+    const allowed = getCommandsByType(d.type);
+
+    // ✅ 기본 command 추천: AIRCON이면 SET_TEMP 우선, 아니면 POWER
+    const nextCmd: Command = allowed.includes("SET_TEMP") ? "SET_TEMP" : "POWER";
+    setCommand(nextCmd);
+
+    // ✅ 기본 값 추천(스냅샷 기반)
+    setPowerOn(Boolean(d.power ?? false));
+    setBrightness(typeof d.brightness === "number" ? d.brightness : 50);
+    setTemp(typeof d.targetTemp === "number" ? d.targetTemp : 24);
   };
 
   const addAction = () => {
@@ -143,19 +157,16 @@ export default function ModeCreateScreen() {
       return;
     }
 
-    // command별 value 유효성
-    if (command === "POWER") {
-      const v = value.toUpperCase();
-      if (!(v === "ON" || v === "OFF")) {
-        Alert.alert("값 오류", "POWER는 ON 또는 OFF로 입력해줘.");
-        return;
-      }
-    } else {
-      if (!/^\d+$/.test(value)) {
-        Alert.alert("값 오류", "숫자만 입력해줘.");
-        return;
-      }
+    const allowed = getCommandsByType(selectedDevice.type);
+    if (!allowed.includes(command)) {
+      Alert.alert("불가", "이 디바이스는 해당 명령을 지원하지 않아.");
+      return;
     }
+
+    let valueStr = "OFF";
+    if (command === "POWER") valueStr = powerOn ? "ON" : "OFF";
+    if (command === "BRIGHTNESS") valueStr = String(Math.round(brightness));
+    if (command === "SET_TEMP") valueStr = String(Math.round(temp));
 
     const next: LocalAction = {
       id: uid(),
@@ -165,7 +176,7 @@ export default function ModeCreateScreen() {
       deviceCode: selectedDevice.deviceCode,
       deviceName: selectedDevice.name,
       command,
-      value: command === "POWER" ? value.toUpperCase() : value,
+      value: valueStr,
     };
 
     setActions((prev) => [...prev, next]);
@@ -178,30 +189,50 @@ export default function ModeCreateScreen() {
 
   const onCreate = async () => {
     if (!canCreate) return;
+
     try {
       const created = await createMode({ modeName: modeName.trim(), sourceModeId: null });
-
-      // TODO(중요): actions를 서버에 저장하려면 ModeAction 저장 API가 필요
-      // - 예: POST /api/mode/{modeId}/actions (배열로)
-      // 지금은 “모드 생성”까지만 완료하고 상세로 이동
-      Alert.alert("생성 완료", "커스텀 모드가 생성됐어.");
       const newId = created?.modeId ?? created?.id;
-      if (newId) {
-        router.replace({
-          pathname: "/mode/[modeId]" as any,
-          params: { modeId: String(newId) },
-        });
-      } else {
-        router.back();
+
+      if (!newId) {
+        Alert.alert("오류", "생성은 됐는데 modeId를 못 받았어.");
+        return;
       }
+
+      // ✅ actions 저장 (sortOrder는 서버가 자동 채워도 되지만, 여기서도 넣어주면 더 안정적)
+      const payload = {
+        actions: actions.map((a, idx) => ({
+          sortOrder: idx + 1,
+          deviceId: a.deviceId,
+          command: a.command,
+          value: a.value,
+        })),
+      };
+
+      if (payload.actions.length > 0) {
+        await setModeActions(newId, payload);
+      }
+
+      Alert.alert("생성 완료", "커스텀 모드가 생성됐어.");
+      router.replace({ pathname: "/mode/[modeId]" as any, params: { modeId: String(newId) } });
     } catch (e) {
       console.log("모드 생성 실패:", e);
-      Alert.alert("오류", "모드 생성에 실패했어. API 경로/바디 확인해줘.");
+      Alert.alert("오류", "모드 생성/저장에 실패했어.");
     }
   };
 
+  const renderActionText = (a: LocalAction) => {
+    if (a.command === "POWER") return `${a.deviceName} 전원 ${a.value}`;
+    if (a.command === "BRIGHTNESS") return `${a.deviceName} 밝기 ${a.value}%`;
+    if (a.command === "SET_TEMP") return `${a.deviceName} 온도 ${a.value}°C`;
+    return `${a.deviceName} ${a.command} = ${a.value}`;
+  };
+
+  const allowedCommands = selectedDevice ? getCommandsByType(selectedDevice.type) : [];
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
+      <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Text style={{ fontSize: 22 }}>‹</Text>
@@ -236,14 +267,16 @@ export default function ModeCreateScreen() {
                 <View style={styles.circle}>
                   <Text style={styles.circleText}>{idx + 1}</Text>
                 </View>
+
                 <View style={{ flex: 1 }}>
                   <Text style={styles.actionMain}>
-                    {a.roomName} · {a.deviceName}
+                    {a.roomName} · {renderActionText(a)}
                   </Text>
                   <Text style={styles.actionSub}>
-                    {a.command} = {a.value}
+                    {a.command} / {a.value}
                   </Text>
                 </View>
+
                 <Pressable onPress={() => removeAction(a.id)} style={styles.trashBtn}>
                   <Text style={{ fontSize: 16 }}>🗑</Text>
                 </Pressable>
@@ -256,13 +289,6 @@ export default function ModeCreateScreen() {
           <Text style={styles.addActionPlus}>＋</Text>
           <Text style={styles.addActionText}>동작 추가</Text>
         </Pressable>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.hintTitle}>💡 예시</Text>
-        <Text style={styles.hintText}>• 아침 기상: 전등 켜기 + 온도 올리기</Text>
-        <Text style={styles.hintText}>• 영화 감상: 거실 조명 어둡게 + 팬 켜기</Text>
-        <Text style={styles.hintText}>• 손님 맞이: 거실·주방 전등 켜기 + 온도 조절</Text>
       </View>
 
       <Pressable
@@ -328,14 +354,22 @@ export default function ModeCreateScreen() {
 
             <Text style={[styles.label, { marginTop: 10 }]}>3) 명령/값</Text>
 
+            {/* ✅ 명령 선택: 가능한 것만 활성화 */}
             <View style={styles.cmdRow}>
               {(["POWER", "BRIGHTNESS", "SET_TEMP"] as const).map((c) => {
+                const enabledCmd = selectedDevice ? allowedCommands.includes(c) : false;
                 const on = command === c;
+
                 return (
                   <Pressable
                     key={c}
+                    disabled={!enabledCmd}
                     onPress={() => setCommand(c)}
-                    style={[styles.cmdChip, on ? styles.cmdOn : styles.cmdOff]}
+                    style={[
+                      styles.cmdChip,
+                      on ? styles.cmdOn : styles.cmdOff,
+                      !enabledCmd && { opacity: 0.35 },
+                    ]}
                   >
                     <Text style={[styles.cmdText, on ? { color: "white" } : { color: "#111" }]}>
                       {c}
@@ -345,12 +379,69 @@ export default function ModeCreateScreen() {
               })}
             </View>
 
-            <TextInput
-              value={value}
-              onChangeText={setValue}
-              placeholder={command === "POWER" ? "ON 또는 OFF" : "숫자 입력"}
-              style={styles.input}
-            />
+            {/* ✅ 값 UI: command별 */}
+            {command === "POWER" ? (
+              <View style={{ marginTop: 10 }}>
+                <Text style={styles.valueTitle}>전원</Text>
+                <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
+                  <Pressable
+                    onPress={() => setPowerOn(false)}
+                    style={[styles.valueChip, !powerOn ? styles.valueOn : styles.valueOff]}
+                  >
+                    <Text
+                      style={[
+                        styles.valueChipText,
+                        !powerOn ? { color: "white" } : { color: "#111" },
+                      ]}
+                    >
+                      OFF
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => setPowerOn(true)}
+                    style={[styles.valueChip, powerOn ? styles.valueOn : styles.valueOff]}
+                  >
+                    <Text
+                      style={[
+                        styles.valueChipText,
+                        powerOn ? { color: "white" } : { color: "#111" },
+                      ]}
+                    >
+                      ON
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : command === "BRIGHTNESS" ? (
+              <View style={{ marginTop: 10 }}>
+                <Text style={styles.valueTitle}>밝기: {Math.round(brightness)}%</Text>
+                <View style={styles.sliderRow}>
+                  <Slider
+                    value={brightness}
+                    onValueChange={setBrightness}
+                    minimumValue={0}
+                    maximumValue={100}
+                    step={1}
+                    style={{ flex: 1 }}
+                  />
+                </View>
+              </View>
+            ) : (
+              <View style={{ marginTop: 10 }}>
+                <Text style={styles.valueTitle}>희망 온도: {Math.round(temp)}°C</Text>
+                <View style={styles.sliderRow}>
+                  <Slider
+                    value={temp}
+                    onValueChange={setTemp}
+                    minimumValue={16}
+                    maximumValue={30}
+                    step={1}
+                    style={{ flex: 1 }}
+                  />
+                </View>
+              </View>
+            )}
 
             <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
               <Pressable
@@ -444,9 +535,6 @@ const styles = StyleSheet.create({
   actionSub: { marginTop: 2, color: "#666", fontWeight: "700" },
   trashBtn: { width: 32, alignItems: "center", justifyContent: "center" },
 
-  hintTitle: { fontWeight: "900" },
-  hintText: { marginTop: 6, color: "#666", fontWeight: "700" },
-
   primaryBtn: {
     backgroundColor: "#2563EB",
     borderRadius: 16,
@@ -485,4 +573,24 @@ const styles = StyleSheet.create({
   cmdOn: { backgroundColor: "#2563EB" },
   cmdOff: { backgroundColor: "#F1F5F9" },
   cmdText: { fontWeight: "900" },
+
+  valueTitle: { marginTop: 8, fontWeight: "900", color: "#111" },
+  valueChip: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 999,
+    alignItems: "center",
+    borderWidth: 1,
+  },
+  valueOn: { backgroundColor: "#2563EB", borderColor: "#2563EB" },
+  valueOff: { backgroundColor: "#F1F5F9", borderColor: "#E2E8F0" },
+  valueChipText: { fontWeight: "900" },
+
+  sliderRow: {
+    marginTop: 10,
+    backgroundColor: "#F1F5F9",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
 });

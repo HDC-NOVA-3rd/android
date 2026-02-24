@@ -47,15 +47,20 @@ export const API_PATHS = {
     ROOMS_MY: "/room/my",
     ROOM_SNAPSHOT: (roomId) => `/room/${roomId}/snapshot`,
     DEVICE_STATE: (roomId) => `/room/${roomId}/devices/state`,
+    ROOM_VISIBILITY: (roomId) => `/room/${roomId}/visibility`,
   },
   APARTMENT: {
     WEATHER: (apartmentId) => `/apartment/${apartmentId}/weather`,
   },
   MODE: {
     LIST: "/mode/my",
+    LIST_ALL: "/mode/my/all",
     DETAIL: "/mode/{modeId}",
     EXECUTE: "/mode/{modeId}/execute",
     CREATE: "/mode/my",
-    SCHEDULES: "/mode/{modeId}/schedule",
+    SCHEDULE: "/mode/{modeId}/schedule",
+    ACTION: "/mode/{modeId}/action",
+    VISIBILITY: "/mode/{modeId}/visibility",
+    DELETE: "/mode/{modeId}",
   },
 };

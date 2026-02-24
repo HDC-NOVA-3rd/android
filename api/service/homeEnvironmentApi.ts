@@ -5,6 +5,7 @@ import { API_PATHS } from "@/api/requests";
 export type RoomItem = {
   roomId: number;
   roomName: string;
+  isVisible: boolean;
 };
 
 export type DeviceSnapshot = {
@@ -114,4 +115,10 @@ export const getHomeRoomsByHo = async (hoId: number) => {
       deviceSummary: makeDeviceSummary(s.device),
     } as HomeRoomCard;
   });
+};
+
+export const updateRoomVisibility = async (roomId: number, visible: boolean) => {
+  const url = API_PATHS.HOME_ENV.ROOM_VISIBILITY(roomId);
+  const res = await client.patch(url, { visible });
+  return res.data;
 };

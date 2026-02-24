@@ -106,18 +106,22 @@ const useMqtt = (brokerUrl: string) => {
   // 추가: 구독/해제
   const subscribe = useCallback((topic: string) => {
     const client = clientRef.current;
-    if (!client) return;
+    if (!client || !client.connected) return;
+
     client.subscribe(topic, { qos: 0 }, (err: any) => {
-      if (err) console.log("[MQTT] subscribe error:", err);
+      if (err) console.log("[MQTT] subscribe error:", err?.message ?? err);
       else console.log("[MQTT] subscribed:", topic);
     });
   }, []);
 
   const unsubscribe = useCallback((topic: string) => {
     const client = clientRef.current;
-    if (!client) return;
+
+    // ✅ 연결 끊겼으면 unsubscribe 자체를 안 함 (에러 스팸 방지)
+    if (!client || !client.connected) return;
+
     client.unsubscribe(topic, (err: any) => {
-      if (err) console.log("[MQTT] unsubscribe error:", err);
+      if (err) console.log("[MQTT] unsubscribe error:", err?.message ?? err);
       else console.log("[MQTT] unsubscribed:", topic);
     });
   }, []);

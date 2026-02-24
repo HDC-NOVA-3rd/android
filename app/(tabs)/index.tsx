@@ -1,11 +1,17 @@
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { useAuth } from "@/context/AuthContext";
+import useMqtt from "@/hooks/useMqtt";
 
 import { getMyApartmentWeather } from "@/api/service/apartmentWeatherApi";
-import { getHomeRoomsMy, HomeRoomCard } from "@/api/service/homeEnvironmentApi";
+import {
+  getMyRooms,
+  getRoomSnapshot,
+  type DeviceSnapshot,
+  type HomeRoomCard,
+} from "@/api/service/homeEnvironmentApi";
 import { getMyApartmentInfo } from "@/api/service/memberService";
 
 // ✅ 모드 가져오기
@@ -17,7 +23,7 @@ type WeatherCard = {
   humidity: number | null;
   airText: string;
   locationText: string;
-  conditionText: string; // 맑음/비/눈...
+  conditionText: string;
 };
 
 type MyApartment = {
@@ -26,6 +32,16 @@ type MyApartment = {
   hoNo?: string | number;
   hoId?: number;
   apartmentId?: number;
+};
+
+const makeDeviceSummary = (devices: DeviceSnapshot[]) => {
+  const led = devices.find((d) => d.type === "LED" || d.deviceCode.startsWith("light"));
+  const fan = devices.find((d) => d.type === "FAN" || d.deviceCode.startsWith("fan"));
+
+  const ledText = led?.power ? "전등 켜짐" : "전등 꺼짐";
+  const fanText = fan?.power ? "에어컨 켜짐" : "에어컨 꺼짐";
+
+  return `${ledText} · ${fanText}`;
 };
 
 export default function HomeTab() {
@@ -44,6 +60,13 @@ export default function HomeTab() {
     conditionText: "--",
   });
 
+  // ✅ MQTT (홈에서도 실시간 반영)
+  const brokerUrl = useMemo(() => "ws://192.168.14.90:9001", []);
+  const HO_ID = "1";
+  const TOPIC_ENV_ALL = useMemo(() => `hdc/${HO_ID}/room/+/env/data`, [HO_ID]);
+  const { connectStatus, subscribe, unsubscribe, lastMessage } = useMqtt(brokerUrl);
+
+  // ✅ 홈 진입 시 스냅샷/날씨/모드 로딩 (기존 그대로)
   useFocusEffect(
     useCallback(() => {
       if (isLoading) return;
@@ -54,7 +77,22 @@ export default function HomeTab() {
           const aptData = await getMyApartmentInfo();
           setApt(aptData);
 
-          const cards = await getHomeRoomsMy();
+          const roomItems = await getMyRooms();
+          const visibleRooms = (roomItems ?? []).filter((r) => r.isVisible);
+
+          const snaps = await Promise.all(visibleRooms.map((r) => getRoomSnapshot(r.roomId)));
+
+          const cards: HomeRoomCard[] = visibleRooms.map((r, idx) => {
+            const s = snaps[idx];
+            return {
+              roomId: r.roomId,
+              roomName: r.roomName,
+              temperature: s.temperature,
+              humidity: s.humidity,
+              deviceSummary: makeDeviceSummary(s.device),
+            };
+          });
+
           setRooms(cards);
 
           const w = await getMyApartmentWeather();
@@ -66,9 +104,8 @@ export default function HomeTab() {
             conditionText: w?.condition ?? "--",
           });
 
-          // ✅ 모드 목록 불러오기
           const ms = await getMyModes();
-          setModes(ms ?? []);
+          setModes((ms ?? []).filter((m) => m.isVisible === true));
         } catch (e) {
           console.log("홈 로딩 실패:", e);
         }
@@ -77,6 +114,41 @@ export default function HomeTab() {
       load();
     }, [accessToken, isLoading]),
   );
+
+  // ✅ MQTT 연결되면 홈에서 env 전체 구독
+  useEffect(() => {
+    if (connectStatus === "connected") subscribe(TOPIC_ENV_ALL);
+    return () => unsubscribe(TOPIC_ENV_ALL);
+  }, [connectStatus, subscribe, unsubscribe, TOPIC_ENV_ALL]);
+
+  // ✅ env 수신하면 rooms state 부분 업데이트 (roomId 기준)
+  useEffect(() => {
+    if (!lastMessage) return;
+
+    // 와일드카드 구독이라 토픽이 정확히 일치하지 않을 수 있음 -> endsWith로 체크
+    if (!lastMessage.topic.endsWith("/env/data")) return;
+
+    try {
+      const data = JSON.parse(lastMessage.message);
+      const rid = Number(data.roomId);
+      if (!Number.isFinite(rid)) return;
+
+      setRooms((prev) =>
+        prev.map((r) =>
+          r.roomId === rid
+            ? {
+                ...r,
+                temperature:
+                  typeof data.temperature === "number" ? data.temperature : r.temperature,
+                humidity: typeof data.humidity === "number" ? data.humidity : r.humidity,
+              }
+            : r,
+        ),
+      );
+    } catch (e) {
+      // ignore
+    }
+  }, [lastMessage]);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
@@ -89,7 +161,7 @@ export default function HomeTab() {
           </Text>
         </View>
 
-        <Pressable style={styles.settingBtn} onPress={() => console.log("설정")}>
+        <Pressable style={styles.settingBtn} onPress={() => router.push("/homesettings")}>
           <Text style={{ fontSize: 30 }}>⚙️</Text>
         </Pressable>
       </View>
@@ -232,12 +304,7 @@ const weatherColor = (condition?: string) => {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#F6F7FB" },
-  container: {
-    padding: 12,
-    paddingBottom: 120,
-    marginTop: 40,
-    backgroundColor: "#F6F7FB",
-  },
+  container: { padding: 12, paddingBottom: 120, marginTop: 40, backgroundColor: "#F6F7FB" },
 
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   headerTitle: { fontSize: 20, fontWeight: "800" },
@@ -288,20 +355,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 10,
   },
+  modeTitle: { fontWeight: "900", fontSize: 16, flexShrink: 1 },
 
-  // 기존 modeTitle에서 flex:1 제거하고 아래로 교체 추천
-  modeTitle: {
-    fontWeight: "900",
-    fontSize: 16,
-    flexShrink: 1,
-  },
-
-  badgeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  modeSub: { color: "#666", fontWeight: "700" },
+  badgeRow: { flexDirection: "row", alignItems: "center", gap: 6 },
 
   addModeBox: {
     marginTop: 10,
@@ -325,22 +381,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  badgeDefaultText: {
-    fontWeight: "900",
-    fontSize: 12,
-    color: "#334155",
-  },
+  badgeDefaultText: { fontWeight: "900", fontSize: 12, color: "#334155" },
+
   badgeCustom: {
     backgroundColor: "#2563EB",
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  badgeCustomText: {
-    fontWeight: "900",
-    fontSize: 12,
-    color: "white",
-  },
+  badgeCustomText: { fontWeight: "900", fontSize: 12, color: "white" },
+
   badgeLock: {
     backgroundColor: "#F1F5F9",
     borderRadius: 999,
@@ -349,9 +399,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#CBD5E1",
   },
-  badgeLockText: {
-    fontWeight: "900",
-    fontSize: 11,
-    color: "#64748B",
-  },
+  badgeLockText: { fontWeight: "900", fontSize: 11, color: "#64748B" },
 });
