@@ -6,9 +6,9 @@ import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { AuthProvider } from "../context/AuthContext";
-import { useEffect } from "react";
 import * as Notifications from "expo-notifications";
+import { useEffect } from "react";
+import { AuthProvider } from "../context/AuthContext";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -67,6 +67,15 @@ export default function RootLayout() {
             <Stack.Screen name="member/reservations" options={{ title: "예약 내역", headerShown: false }} />
 
             <Stack.Screen name="notice/[noticeId]" options={{ title: "공지사항 상세", headerShown: false }} />
+
+            <Stack.Screen 
+              name="complaint/[complaintId]" 
+              options={{ title: "민원 상세", headerShown: false }} 
+            />
+            <Stack.Screen 
+              name="complaint/create" 
+              options={{ title: "민원 신청", headerShown: false, presentation: "modal" }} 
+            />
 
             <Stack.Screen name="auth/findID" options={{ title: "아이디 찾기" }} />
             <Stack.Screen name="auth/resetPW" options={{ title: "비밀번호 재설정" }} />
