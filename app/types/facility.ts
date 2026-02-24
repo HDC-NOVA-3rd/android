@@ -15,5 +15,5 @@ export interface Facility {
   operatingHours: string;
   imageUrls: string[];
   spaces: Space[];
-  reservation_available?: boolean;
+  reservationAvailable?: boolean;
 }

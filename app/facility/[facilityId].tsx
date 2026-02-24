@@ -12,7 +12,7 @@ import { Card } from "@/components/ui/card";
 import { ImageCarousel } from "@/components/ui/ImageCarousel";
 import { styles } from "@/styles/facility/detail.styles";
 import { BASE_URL } from "@/api/client";
-import { Dimensions } from "react-native";
+import { Alert, Dimensions } from "react-native";
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
 export default function FacilityDetailScreen() {
@@ -60,7 +60,7 @@ export default function FacilityDetailScreen() {
           operatingHours: `${formatTime(detailData.startHour)} - ${formatTime(detailData.endHour)}`,
           imageUrls: images,
           spaces: spaces,
-          reservation_available: detailData.reservation_available,
+          reservationAvailable: detailData.reservationAvailable,
         };
         console.log(mappedFacility);
 
@@ -78,8 +78,8 @@ export default function FacilityDetailScreen() {
   const onSelectRoom = (space: Space) => {
     // Reservation logic would go here
     console.log("Selected space:", space);
-    if (facility?.reservation_available === false) {
-      alert("현재 예약이 불가능한 시설입니다.");
+    if (facility?.reservationAvailable === false) {
+      Alert.alert("예약 불가", "현재 예약이 불가능한 시설입니다.");
       return;
     }
     router.push(`/facility/reservation/${space.id}`);
