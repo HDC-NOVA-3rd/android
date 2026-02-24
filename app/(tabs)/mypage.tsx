@@ -208,6 +208,14 @@ export default function MyPageScreen() {
           </CardHeader>
           <CardContent>
             <View style={styles.settingsList}>
+              <Button 
+                variant="outline" 
+                style={styles.settingButton} 
+                onPress={() => router.push("/bill")} 
+              >
+                <Feather name="file-text" size={16} color="black" style={styles.settingIcon} />
+                <Text>관리비 고지서 조회</Text>
+              </Button>
               <Button variant="outline" style={styles.settingButton} onPress={() => router.push("/member/changePW")}>
                 <Feather name="lock" size={16} color="black" style={styles.settingIcon} />
                 <Text>비밀번호 변경</Text>

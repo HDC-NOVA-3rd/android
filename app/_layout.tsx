@@ -68,14 +68,11 @@ export default function RootLayout() {
 
             <Stack.Screen name="notice/[noticeId]" options={{ title: "공지사항 상세", headerShown: false }} />
 
-            <Stack.Screen 
-              name="complaint/[complaintId]" 
-              options={{ title: "민원 상세", headerShown: false }} 
-            />
-            <Stack.Screen 
-              name="complaint/create" 
-              options={{ title: "민원 신청", headerShown: false, presentation: "modal" }} 
-            />
+            <Stack.Screen name="complaint/[complaintId]" options={{ title: "민원 상세", headerShown: false }} />
+            <Stack.Screen name="complaint/create" options={{ title: "민원 신청", headerShown: false, presentation: "modal" }} />
+
+            <Stack.Screen name="bill/index" options={{ title: "관리비 고지서", headerShown: true }} />
+            <Stack.Screen name="bill/[billId]" options={{ title: "고지서 상세", headerShown: true }} />
 
             <Stack.Screen name="auth/findID" options={{ title: "아이디 찾기" }} />
             <Stack.Screen name="auth/resetPW" options={{ title: "비밀번호 재설정" }} />
