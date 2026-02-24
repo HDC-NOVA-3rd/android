@@ -22,21 +22,12 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
-        options={{
-          title: "홈",
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
-      />
-
-      <Tabs.Screen
         name="facilityList"
         options={{
           title: "시설",
           tabBarIcon: ({ color }) => <Feather size={28} name="grid" color={color} />,
         }}
       />
-
       <Tabs.Screen
         name="chat"
         options={{
@@ -45,10 +36,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="mypage"
+        name="index"
         options={{
-          title: "내 정보",
-          tabBarIcon: ({ color }) => <Feather size={28} name="user" color={color} />,
+          title: "홈",
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
         }}
       />
       <Tabs.Screen
@@ -56,6 +47,20 @@ export default function TabLayout() {
         options={{
           title: "공지사항",
           tabBarIcon: ({ color }) => <Feather size={28} name="bell" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="complaint"
+        options={{
+          title: "민원",
+          tabBarIcon: ({ color }) => <Feather size={28} name="edit-3" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="mypage"
+        options={{
+          title: "내 정보",
+          tabBarIcon: ({ color }) => <Feather size={28} name="user" color={color} />,
         }}
       />
     </Tabs>
