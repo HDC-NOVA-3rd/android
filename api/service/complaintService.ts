@@ -2,19 +2,30 @@ import client from "../client";
 import { API_PATHS } from "../requests";
 
 export interface ComplaintItem {
-  complaintId: number;
+  complaintId: number; 
   title: string;
   content: string;
-  status: "PENDING" | "PROCESSING" | "COMPLETED"; // 백엔드 ComplaintStatus 대응
+  status: "RECEIVED" | "ASSIGNED" | "IN_PROGRESS" | "COMPLETED"; 
   createdAt: string;
-  authorName?: string;
+  type: string; 
 }
 
-// 상세 조회용 (필요시 추가 필드 정의)
+export interface ComplaintAnswer {
+  id: number;
+  adminId: number;
+  resultContent: string; 
+  createdAt: string;
+}
+
 export interface ComplaintDetail extends ComplaintItem {
+  complaintId: number;
   memberId: number;
+  adminId?: number;
+  adminName?: string;
   apartmentId: number;
-  answer?: string; // 관리자 답변 등
+  answer?: ComplaintAnswer; 
+  hasReview: boolean;
+  resolvedAt?: string;
 }
 
 /**
@@ -41,8 +52,15 @@ export const getComplaintDetail = async (id: number): Promise<ComplaintDetail> =
 /**
  * 민원 등록
  */
-export const createComplaint = async (title: string, content: string) => {
-  return await client.post(API_PATHS.COMPLAINT.CREATE, { title, content });
+export const createComplaint = async (title: string, content: string, type: string) => {
+  return await client.post(API_PATHS.COMPLAINT.CREATE, { title, content, type });
+};
+
+/**
+ * 민원 수정 
+ */
+export const updateComplaint = async (complaintId: number, title: string, content: string, type: string) => {
+  return await client.put(API_PATHS.COMPLAINT.UPDATE(complaintId), { title, content, type });
 };
 
 /**

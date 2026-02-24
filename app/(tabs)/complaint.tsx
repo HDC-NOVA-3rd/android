@@ -2,12 +2,12 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    RefreshControl,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -21,6 +21,13 @@ export default function ComplaintScreen() {
   const [complaints, setComplaints] = useState<ComplaintItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const STATUS_MAP = {
+    RECEIVED: { label: "접수", color: "#6b7280" },
+    ASSIGNED: { label: "담당자 배정", color: "#3b82f6" },
+    IN_PROGRESS: { label: "처리 중", color: "#f59e0b" },
+    COMPLETED: { label: "완료", color: "#10b981" },
+  };
 
   const fetchComplaints = useCallback(async () => {
     if (!accessToken) {
@@ -76,8 +83,8 @@ export default function ComplaintScreen() {
               style={styles.card}
               onPress={() => router.push(`/complaint/${item.complaintId}`)}
             >
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusText}>{item.status}</Text>
+              <View style={[styles.statusBadge, { backgroundColor: STATUS_MAP[item.status]?.color || "#eee" }]}>
+                <Text style={styles.statusText}>{STATUS_MAP[item.status]?.label || item.status}</Text>
               </View>
               <Text style={styles.cardTitle}>{item.title}</Text>
               <Text style={styles.dateText}>{item.createdAt.split('T')[0]}</Text>
