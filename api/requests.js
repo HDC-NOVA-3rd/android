@@ -73,4 +73,9 @@ export const API_PATHS = {
     DETAIL: (complaintId) => `/complaint/${complaintId}/member`,
     REVIEW: (complaintId) => `/complaint/${complaintId}/review`,
   },
+  BILL: {
+    LIST: "/bill",
+    DETAIL: (billId) => `/bill/${billId}`,
+    PDF: (billId) => `/bill/${billId}/pdf`,
+  },
 };
