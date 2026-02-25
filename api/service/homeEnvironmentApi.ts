@@ -5,16 +5,18 @@ import { API_PATHS } from "@/api/requests";
 export type RoomItem = {
   roomId: number;
   roomName: string;
+  isVisible: boolean;
 };
 
 export type DeviceSnapshot = {
   deviceId: number;
   deviceCode: string;
   name: string;
-  type: "LED" | "FAN" | "AC" | string;
+  type: "LED" | "FAN" | "AIRCON" | string;
   power: boolean | null;
   brightness: number | null;
   targetTemp: number | null;
+  autoMode: boolean | null; // 추가
 };
 
 export type SnapshotResponse = {
@@ -31,6 +33,7 @@ export type DeviceStatePatchRequest = {
     power?: boolean;
     brightness?: number;
     targetTemp?: number;
+    autoMode?: boolean; // 추가
   }[];
 };
 
@@ -114,4 +117,10 @@ export const getHomeRoomsByHo = async (hoId: number) => {
       deviceSummary: makeDeviceSummary(s.device),
     } as HomeRoomCard;
   });
+};
+
+export const updateRoomVisibility = async (roomId: number, visible: boolean) => {
+  const url = API_PATHS.HOME_ENV.ROOM_VISIBILITY(roomId);
+  const res = await client.patch(url, { visible });
+  return res.data;
 };
