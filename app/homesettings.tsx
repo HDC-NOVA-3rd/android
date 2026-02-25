@@ -1,7 +1,16 @@
 // app/homesettings.tsx
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import {
+  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from "react-native";
 
 import { getMyRooms, updateRoomVisibility, type RoomItem } from "@/api/service/homeEnvironmentApi";
 import { deleteMode, getMyModesAll, updateModeVisibility } from "@/api/service/modeService";
@@ -29,7 +38,7 @@ export default function HomeSettingsScreen() {
     try {
       setSaving(true);
       await updateRoomVisibility(roomId, nextVisible);
-      await load(); // 서버값 다시 가져오기
+      await load();
     } catch (e) {
       console.log(e);
       Alert.alert("오류", "방 설정 변경에 실패했습니다.");
@@ -42,7 +51,6 @@ export default function HomeSettingsScreen() {
     try {
       setSaving(true);
       await updateModeVisibility(modeId, nextVisible);
-      // 서버 저장 후 다시 로드(홈에서도 바로 반영되게)
       await load();
     } catch (e) {
       console.log(e);
@@ -52,25 +60,34 @@ export default function HomeSettingsScreen() {
     }
   };
 
-  const onDeleteMode = async (modeId: number) => {
+  const onDeleteMode = (modeId: number) => {
+    const runDelete = async () => {
+      try {
+        setSaving(true);
+        await deleteMode(modeId);
+        await load();
+      } catch (e) {
+        console.log(e);
+        if (Platform.OS === "web") {
+          window.alert("모드 삭제에 실패했습니다.");
+        } else {
+          Alert.alert("오류", "모드 삭제에 실패했습니다.");
+        }
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    // ✅ Web은 Alert가 안 뜰 수 있어서 confirm 사용
+    if (Platform.OS === "web") {
+      const ok = window.confirm("정말 삭제할까요?");
+      if (ok) runDelete();
+      return;
+    }
+
     Alert.alert("모드 삭제", "정말 삭제할까요?", [
       { text: "취소", style: "cancel" },
-      {
-        text: "삭제",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            setSaving(true);
-            await deleteMode(modeId); // ✅ DELETE /mode/{modeId}
-            await load(); // ✅ 다시 로드해서 목록 갱신
-          } catch (e) {
-            console.log(e);
-            Alert.alert("오류", "모드 삭제에 실패했습니다.");
-          } finally {
-            setSaving(false);
-          }
-        },
-      },
+      { text: "삭제", style: "destructive", onPress: runDelete },
     ]);
   };
 
@@ -78,9 +95,8 @@ export default function HomeSettingsScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* ✅ 상단 “내정보 카드” 없음. 헤더만 */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
           <Text style={{ fontSize: 22 }}>‹</Text>
         </Pressable>
         <Text style={styles.title}>설정</Text>
@@ -90,7 +106,6 @@ export default function HomeSettingsScreen() {
       <Text style={styles.sectionTitle}>홈 화면 설정</Text>
       <Text style={styles.sectionSub}>표시할 방/모드를 선택할 수 있습니다.</Text>
 
-      {/* 방 토글 */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>방</Text>
 
@@ -106,7 +121,6 @@ export default function HomeSettingsScreen() {
         ))}
       </View>
 
-      {/* 모드 토글 */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>모드</Text>
 
@@ -114,13 +128,21 @@ export default function HomeSettingsScreen() {
           <View key={m.modeId} style={styles.row}>
             <Text style={styles.rowText}>{m.modeName}</Text>
 
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-              {/* ✅ 커스텀만 삭제 버튼 */}
+            {/* 오른쪽 영역은 터치/레이아웃 덮임 방지 */}
+            <View style={styles.rightBox} pointerEvents="box-none">
               {!m.isDefault && (
                 <Pressable
-                  disabled={saving || m.isDefault}
-                  onPress={() => onDeleteMode(m.modeId)}
-                  style={styles.deleteBtn}
+                  disabled={saving}
+                  onPress={() => {
+                    console.log("DELETE PRESS", m.modeId);
+                    onDeleteMode(m.modeId);
+                  }}
+                  hitSlop={10}
+                  style={({ pressed }) => [
+                    styles.deleteBtn,
+                    pressed && !saving ? styles.deleteBtnPressed : null,
+                    saving ? styles.deleteBtnDisabled : null,
+                  ]}
                 >
                   <Text style={styles.deleteBtnText}>삭제</Text>
                 </Pressable>
@@ -161,15 +183,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  rowText: { fontWeight: "800", color: "#111" },
+
+  rowText: { flex: 1, fontWeight: "800", color: "#111" },
+
+  rightBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flexShrink: 0, // ✅ Switch 터치영역이 왼쪽으로 침범하는 거 방지
+  },
+
   deleteBtn: {
     backgroundColor: "#FEE2E2",
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 6,
+
+    // ✅ Switch 터치영역보다 위로
+    position: "relative",
+    zIndex: 10,
+    elevation: 10,
   },
-  deleteBtnText: {
-    color: "#B91C1C",
-    fontWeight: "900",
-  },
+  deleteBtnPressed: { opacity: 0.7 },
+  deleteBtnDisabled: { opacity: 0.4 },
+  deleteBtnText: { color: "#B91C1C", fontWeight: "900" },
 });
