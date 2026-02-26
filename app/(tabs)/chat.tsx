@@ -56,6 +56,8 @@ const CHAT_INTENTS: readonly ChatIntent[] = [
   "COMPLAINT_LIST",
   "COMPLAINT_DETAIL",
 
+  "BILL_LIST",
+
   "RESERVATION_LIST",
   "RESERVATION_DETAIL",
 
@@ -367,6 +369,7 @@ export default function ChatScreen() {
     "우리 아파트 동 목록 보여줘",
     "등록된 방 목록 보여줘",
     "공지사항 보여줘",
+    "관리비 고지서 보여줘",
     "내 민원 목록 보여줘",
     "내 예약 목록 보여줘",
     "우리 아파트 시설 뭐 있어?",

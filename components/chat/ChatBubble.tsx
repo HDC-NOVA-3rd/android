@@ -8,6 +8,7 @@ import CardContainer from "./cards/CardContainer";
 // 기존 카드
 import ApartmentDongListCard from "./cards/ApartmentDongListCard";
 import ApartmentWeatherCard from "./cards/ApartmentWeatherCard";
+import BillListCard from "./cards/BillListCard";
 import ComplaintDetailCard from "./cards/ComplaintDetailCard";
 import ComplaintListCard from "./cards/ComplaintListCard";
 import EnvHistoryCard from "./cards/EnvHistoryCard";
@@ -25,7 +26,6 @@ import RoomListCard from "./cards/RoomListCard";
 import SpaceByCapacityCard from "./cards/SpaceByCapacityCard";
 import SpaceInfoCard from "./cards/SpaceInfoCard";
 import SpaceListCard from "./cards/SpaceListCard";
-
 function renderCard(intent?: ChatIntent, data?: any, onQuickSend?: (text: string) => void) {
   if (!intent || !data) return null;
 
@@ -48,7 +48,8 @@ function renderCard(intent?: ChatIntent, data?: any, onQuickSend?: (text: string
       return <ApartmentDongListCard data={data} />;
     case "APARTMENT_WEATHER":
       return <ApartmentWeatherCard data={data} />;
-
+    case "BILL_LIST":
+      return <BillListCard data={data} onPickIndex={onQuickSend} />;
     case "FACILITY_LIST":
       return <FacilityListCard data={data} />;
 

@@ -47,7 +47,7 @@ type Props = {
 };
 
 export default function ChatRoom({
-  title = "Chatbot",
+  title = "NOVA",
   messages,
   text,
   setText,
