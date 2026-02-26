@@ -370,16 +370,14 @@ export default function ChatScreen() {
     "등록된 방 목록 보여줘",
     "공지사항 보여줘",
     "관리비 고지서 보여줘",
-    "내 민원 목록 보여줘",
     "내 예약 목록 보여줘",
     "우리 아파트 시설 뭐 있어?",
     "골프장 비용 알려줘",
     "스터디룸 4명 가능한 공간 찾아줘",
     "헬스장 운영시간이 언제야?",
     "지금 거실 온도 알려줘",
-    "거실 온도 기록 보여줘",
+
     "우리 아파트 날씨 알려줘",
-    "게스트하우스 6명 가능해?",
   ];
 
   return (
@@ -396,7 +394,6 @@ export default function ChatScreen() {
               onDeleteSession={handleDeleteSession}
               onDeleteAll={handleDeleteAll}
               onQuickSend={handleQuickSendFromSidebar}
-              // ✅ Peek props
               onPeekMessages={handlePeekMessages}
               peekLimit={5}
               // ✅ 확장 props
