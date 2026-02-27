@@ -1,6 +1,6 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, FlatList } from 'react-native';
-import { Input } from './input';
+import React from "react";
+import { View, Text, TouchableOpacity, StyleSheet, Modal, FlatList, ScrollView } from "react-native";
+import { Input } from "./input";
 
 // Very basic mock implementation of Select for this prototype
 interface SelectProps {
@@ -62,16 +62,12 @@ export function SelectTrigger({ children }: SelectTriggerProps) {
 
 export function SelectValue({ placeholder }: SelectValueProps) {
   const { value } = React.useContext(SelectContext);
-  return (
-    <Text style={value ? styles.value : styles.placeholder}>
-      {value || placeholder}
-    </Text>
-  );
+  return <Text style={value ? styles.value : styles.placeholder}>{value || placeholder}</Text>;
 }
 
 export function SelectContent({ children }: SelectContentProps) {
   const { open, setOpen } = React.useContext(SelectContext);
-  
+
   // Flatten children to an array if it's not already
   const items = React.Children.toArray(children);
 
@@ -79,7 +75,9 @@ export function SelectContent({ children }: SelectContentProps) {
     <Modal visible={open} transparent animationType="fade">
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setOpen(false)}>
         <View style={styles.content}>
-          {items}
+          <ScrollView showsVerticalScrollIndicator={true} onStartShouldSetResponder={() => true}>
+            {items}
+          </ScrollView>
         </View>
       </TouchableOpacity>
     </Modal>
@@ -88,7 +86,7 @@ export function SelectContent({ children }: SelectContentProps) {
 
 export function SelectItem({ value, children }: SelectItemProps) {
   const { onValueChange, setOpen } = React.useContext(SelectContext);
-  
+
   const handlePress = () => {
     onValueChange(value);
     setOpen(false);
@@ -105,39 +103,39 @@ const styles = StyleSheet.create({
   trigger: {
     height: 44,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: "#e5e7eb",
     borderRadius: 6,
     paddingHorizontal: 12,
-    justifyContent: 'center',
-    backgroundColor: '#ffffff',
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
   },
   value: {
     fontSize: 14,
-    color: '#111827',
+    color: "#111827",
   },
   placeholder: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: "#9ca3af",
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
     padding: 24,
   },
   content: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 8,
     padding: 8,
-    maxHeight: '50%',
+    maxHeight: "50%",
   },
   item: {
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: "#f3f4f6",
   },
   itemText: {
     fontSize: 16,
-    color: '#111827',
+    color: "#111827",
   },
 });
